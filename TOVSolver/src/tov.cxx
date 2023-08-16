@@ -70,25 +70,25 @@ extern "C" void TOV_C_Exact(CCTK_ARGUMENTS) {
     grid.loop_all<1, 1, 1>(
         grid.nghostzones,
         [=] CCTK_HOST(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-          alp_cell(p.I) = 1.0;
-          betax_cell(p.I) = 0.0;
-          betay_cell(p.I) = 0.0;
-          betaz_cell(p.I) = 0.0;
+          alp(p.I) = 1.0;
+          betax(p.I) = 0.0;
+          betay(p.I) = 0.0;
+          betaz(p.I) = 0.0;
 
-          dtalp_cell(p.I) = 0.0;
-          dtbetax_cell(p.I) = 0.0;
-          dtbetay_cell(p.I) = 0.0;
-          dtbetaz_cell(p.I) = 0.0;
+          dtalp(p.I) = 0.0;
+          dtbetax(p.I) = 0.0;
+          dtbetay(p.I) = 0.0;
+          dtbetaz(p.I) = 0.0;
 
-          gxx_cell(p.I) = 0.0;
-          gyy_cell(p.I) = 0.0;
-          gzz_cell(p.I) = 0.0;
-          gxy_cell(p.I) = gxz_cell(p.I) = gyz_cell(p.I) = 0.0;
+          gxx(p.I) = 0.0;
+          gyy(p.I) = 0.0;
+          gzz(p.I) = 0.0;
+          gxy(p.I) = gxz(p.I) = gyz(p.I) = 0.0;
 
-          kxx_cell(p.I) = 0.0;
-          kyy_cell(p.I) = 0.0;
-          kzz_cell(p.I) = 0.0;
-          kxy_cell(p.I) = kxz_cell(p.I) = kyz_cell(p.I) = 0.0;
+          kxx(p.I) = 0.0;
+          kyy(p.I) = 0.0;
+          kzz(p.I) = 0.0;
+          kxy(p.I) = kxz(p.I) = kyz(p.I) = 0.0;
         });
   }
 
@@ -205,13 +205,13 @@ extern "C" void TOV_C_Exact(CCTK_ARGUMENTS) {
           /* handle initial data */
           if (TOV_Use_Old_Initial_Data) {
             /* check metric */
-            if ((my_psi4 * gxx_cell(p.I) < max_g_diag) &&
-                (my_psi4 * gyy_cell(p.I) < max_g_diag) &&
-                (my_psi4 * gzz_cell(p.I) < max_g_diag)) {
-              gxx_cell(p.I) = max_g_diag / my_psi4;
-              gyy_cell(p.I) = max_g_diag / my_psi4;
-              gzz_cell(p.I) = max_g_diag / my_psi4;
-              gxy_cell(p.I) = gxz_cell(p.I) = gyz_cell(p.I) = 0.0;
+            if ((my_psi4 * gxx(p.I) < max_g_diag) &&
+                (my_psi4 * gyy(p.I) < max_g_diag) &&
+                (my_psi4 * gzz(p.I) < max_g_diag)) {
+              gxx(p.I) = max_g_diag / my_psi4;
+              gyy(p.I) = max_g_diag / my_psi4;
+              gzz(p.I) = max_g_diag / my_psi4;
+              gxy(p.I) = gxz(p.I) = gyz(p.I) = 0.0;
             }
             /* check matter */
             if (TOV_Use_Old_Matter_Initial_Data) {
@@ -227,11 +227,11 @@ extern "C" void TOV_C_Exact(CCTK_ARGUMENTS) {
                 my_velz = velz(p.I);
               } else {
                 if (tov_lapse)
-                  alp_cell(p.I) = exp(phi_point[star]);
+                  alp(p.I) = exp(phi_point[star]);
                 if (tov_shift) {
-                  betax_cell(p.I) = 0.0;
-                  betay_cell(p.I) = 0.0;
-                  betaz_cell(p.I) = 0.0;
+                  betax(p.I) = 0.0;
+                  betay(p.I) = 0.0;
+                  betaz(p.I) = 0.0;
                 }
                 my_velx = TOV_Velocity_x[star];
                 my_vely = TOV_Velocity_y[star];
@@ -239,11 +239,11 @@ extern "C" void TOV_C_Exact(CCTK_ARGUMENTS) {
               }
             } else {
               if (tov_lapse)
-                alp_cell(p.I) = exp(phi_point[star]);
+                alp(p.I) = exp(phi_point[star]);
               if (tov_shift) {
-                betax_cell(p.I) = 0.0;
-                betay_cell(p.I) = 0.0;
-                betaz_cell(p.I) = 0.0;
+                betax(p.I) = 0.0;
+                betay(p.I) = 0.0;
+                betaz(p.I) = 0.0;
               }
               my_velx = TOV_Velocity_x[star];
               my_vely = TOV_Velocity_y[star];
@@ -251,16 +251,16 @@ extern "C" void TOV_C_Exact(CCTK_ARGUMENTS) {
             }
           } else /* do not use old initial data */
           {
-            gxx_cell(p.I) = max_g_diag;
-            gyy_cell(p.I) = max_g_diag;
-            gzz_cell(p.I) = max_g_diag;
-            gxy_cell(p.I) = gxz_cell(p.I) = gyz_cell(p.I) = 0.0;
+            gxx(p.I) = max_g_diag;
+            gyy(p.I) = max_g_diag;
+            gzz(p.I) = max_g_diag;
+            gxy(p.I) = gxz(p.I) = gyz(p.I) = 0.0;
             if (tov_lapse)
-              alp_cell(p.I) = exp(phi_point[star]);
+              alp(p.I) = exp(phi_point[star]);
             if (tov_shift) {
-              betax_cell(p.I) = 0.0;
-              betay_cell(p.I) = 0.0;
-              betaz_cell(p.I) = 0.0;
+              betax(p.I) = 0.0;
+              betay(p.I) = 0.0;
+              betaz(p.I) = 0.0;
             }
             my_velx = TOV_Velocity_x[star];
             my_vely = TOV_Velocity_y[star];
@@ -285,16 +285,16 @@ extern "C" void TOV_C_Exact(CCTK_ARGUMENTS) {
           }
           star = -1;
           for (int star_i = 0; star_i < TOV_Num_TOVs; star_i++) {
-            gxx_cell(p.I) +=
+            gxx(p.I) +=
                 (r_point[star_i] * r_point[star_i] /
                  (r_to_star[star_i] * r_to_star[star_i] + 1.0e-30)) /
                 my_psi4;
             if (tov_lapse)
-              alp_cell(p.I) *= exp(phi_point[star_i]);
+              alp(p.I) *= exp(phi_point[star_i]);
             if (tov_shift) {
-              betax_cell(p.I) = 0.0;
-              betay_cell(p.I) = 0.0;
-              betaz_cell(p.I) = 0.0;
+              betax(p.I) = 0.0;
+              betay(p.I) = 0.0;
+              betaz(p.I) = 0.0;
             }
             rho(p.I) += rho_point[star_i];
             eps(p.I) += eps_point[star_i];
@@ -305,10 +305,10 @@ extern "C" void TOV_C_Exact(CCTK_ARGUMENTS) {
               star = star_i;
             }
           }
-          gxx_cell(p.I) -=
+          gxx(p.I) -=
               ((TOV_Num_TOVs + TOV_Use_Old_Initial_Data - 1) / my_psi4);
-          gyy_cell(p.I) = gxx_cell(p.I);
-          gzz_cell(p.I) = gxx_cell(p.I);
+          gyy(p.I) = gxx(p.I);
+          gzz(p.I) = gxx(p.I);
           /* set to defined velocity. default is 0.0 because other velocities
            * violate the constraints */
           if (star > -1) {
@@ -318,34 +318,6 @@ extern "C" void TOV_C_Exact(CCTK_ARGUMENTS) {
           }
         }
       });
-
-  grid.loop_int<0, 0, 0>(grid.nghostzones,
-                         [=] CCTK_HOST(const Loop::PointDesc &p)
-                             CCTK_ATTRIBUTE_ALWAYS_INLINE {
-                               gxx(p.I) = calc_avg_c2v(gxx_cell, p);
-                               gxy(p.I) = calc_avg_c2v(gxy_cell, p);
-                               gxz(p.I) = calc_avg_c2v(gxz_cell, p);
-                               gyy(p.I) = calc_avg_c2v(gyy_cell, p);
-                               gyz(p.I) = calc_avg_c2v(gyz_cell, p);
-                               gzz(p.I) = calc_avg_c2v(gzz_cell, p);
-
-                               kxx(p.I) = calc_avg_c2v(kxx_cell, p);
-                               kxy(p.I) = calc_avg_c2v(kxy_cell, p);
-                               kxz(p.I) = calc_avg_c2v(kxz_cell, p);
-                               kyy(p.I) = calc_avg_c2v(kyy_cell, p);
-                               kyz(p.I) = calc_avg_c2v(kyz_cell, p);
-                               kzz(p.I) = calc_avg_c2v(kzz_cell, p);
-
-                               alp(p.I) = calc_avg_c2v(alp_cell, p);
-                               betax(p.I) = calc_avg_c2v(betax_cell, p);
-                               betay(p.I) = calc_avg_c2v(betay_cell, p);
-                               betaz(p.I) = calc_avg_c2v(betaz_cell, p);
-
-                               dtalp(p.I) = calc_avg_c2v(dtalp_cell, p);
-                               dtbetax(p.I) = calc_avg_c2v(dtbetax_cell, p);
-                               dtbetay(p.I) = calc_avg_c2v(dtbetay_cell, p);
-                               dtbetaz(p.I) = calc_avg_c2v(dtbetaz_cell, p);
-                             });
 
   CCTK_INFO("Done interpolation for TOV hydro initial data.");
 
@@ -398,25 +370,25 @@ extern "C" void TOV_C_Exact_ADM(CCTK_ARGUMENTS) {
     grid.loop_all<1, 1, 1>(
         grid.nghostzones,
         [=] CCTK_HOST(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-          alp_cell(p.I) = 1.0;
-          betax_cell(p.I) = 0.0;
-          betay_cell(p.I) = 0.0;
-          betaz_cell(p.I) = 0.0;
+          alp(p.I) = 1.0;
+          betax(p.I) = 0.0;
+          betay(p.I) = 0.0;
+          betaz(p.I) = 0.0;
 
-          dtalp_cell(p.I) = 0.0;
-          dtbetax_cell(p.I) = 0.0;
-          dtbetay_cell(p.I) = 0.0;
-          dtbetaz_cell(p.I) = 0.0;
+          dtalp(p.I) = 0.0;
+          dtbetax(p.I) = 0.0;
+          dtbetay(p.I) = 0.0;
+          dtbetaz(p.I) = 0.0;
 
-          gxx_cell(p.I) = 0.0;
-          gyy_cell(p.I) = 0.0;
-          gzz_cell(p.I) = 0.0;
-          gxy_cell(p.I) = gxz_cell(p.I) = gyz_cell(p.I) = 0.0;
+          gxx(p.I) = 0.0;
+          gyy(p.I) = 0.0;
+          gzz(p.I) = 0.0;
+          gxy(p.I) = gxz(p.I) = gyz(p.I) = 0.0;
 
-          kxx_cell(p.I) = 0.0;
-          kyy_cell(p.I) = 0.0;
-          kzz_cell(p.I) = 0.0;
-          kxy_cell(p.I) = kxz_cell(p.I) = kyz_cell(p.I) = 0.0;
+          kxx(p.I) = 0.0;
+          kyy(p.I) = 0.0;
+          kzz(p.I) = 0.0;
+          kxy(p.I) = kxz(p.I) = kyz(p.I) = 0.0;
         });
   }
 
@@ -506,35 +478,35 @@ extern "C" void TOV_C_Exact_ADM(CCTK_ARGUMENTS) {
           /* handle initial data */
           if (TOV_Use_Old_Initial_Data) {
             /* check metric */
-            if ((my_psi4 * gxx_cell(p.I) < max_g_diag) &&
-                (my_psi4 * gyy_cell(p.I) < max_g_diag) &&
-                (my_psi4 * gzz_cell(p.I) < max_g_diag)) {
-              gxx_cell(p.I) = max_g_diag / my_psi4;
-              gyy_cell(p.I) = max_g_diag / my_psi4;
-              gzz_cell(p.I) = max_g_diag / my_psi4;
-              gxy_cell(p.I) = gxz_cell(p.I) = gyz_cell(p.I) = 0.0;
+            if ((my_psi4 * gxx(p.I) < max_g_diag) &&
+                (my_psi4 * gyy(p.I) < max_g_diag) &&
+                (my_psi4 * gzz(p.I) < max_g_diag)) {
+              gxx(p.I) = max_g_diag / my_psi4;
+              gyy(p.I) = max_g_diag / my_psi4;
+              gzz(p.I) = max_g_diag / my_psi4;
+              gxy(p.I) = gxz(p.I) = gyz(p.I) = 0.0;
             }
             if (tov_lapse)
-              alp_cell(p.I) = exp(phi_point[star]);
+              alp(p.I) = exp(phi_point[star]);
             if (tov_shift) {
-              betax_cell(p.I) = 0.0;
-              betay_cell(p.I) = 0.0;
-              betaz_cell(p.I) = 0.0;
+              betax(p.I) = 0.0;
+              betay(p.I) = 0.0;
+              betaz(p.I) = 0.0;
             }
           } else /* do not use old initial data */
           {
             /* no psi, since it is 1.0 here */
             /* but maybe we want to have it != 1.0 */
-            gxx_cell(p.I) = max_g_diag;
-            gyy_cell(p.I) = max_g_diag;
-            gzz_cell(p.I) = max_g_diag;
-            gxy_cell(p.I) = gxz_cell(p.I) = gyz_cell(p.I) = 0.0;
+            gxx(p.I) = max_g_diag;
+            gyy(p.I) = max_g_diag;
+            gzz(p.I) = max_g_diag;
+            gxy(p.I) = gxz(p.I) = gyz(p.I) = 0.0;
             if (tov_lapse)
-              alp_cell(p.I) = exp(phi_point[star]);
+              alp(p.I) = exp(phi_point[star]);
             if (tov_shift) {
-              betax_cell(p.I) = 0.0;
-              betay_cell(p.I) = 0.0;
-              betaz_cell(p.I) = 0.0;
+              betax(p.I) = 0.0;
+              betay(p.I) = 0.0;
+              betaz(p.I) = 0.0;
             }
           }
 
@@ -543,52 +515,24 @@ extern "C" void TOV_C_Exact_ADM(CCTK_ARGUMENTS) {
           star = -1;
           for (int star_i = 0; star_i < TOV_Num_TOVs; star_i++) {
             /* Conformal_Flat_Three_Metric unsupported yet */
-            gxx_cell(p.I) +=
+            gxx(p.I) +=
                 (r_point[star_i] * r_point[star_i] /
                  (r_to_star[star_i] * r_to_star[star_i] + 1.0e-30)) /
                 my_psi4;
             if (tov_lapse)
-              alp_cell(p.I) *= exp(phi_point[star_i]);
+              alp(p.I) *= exp(phi_point[star_i]);
             if (tov_shift) {
-              betax_cell(p.I) = 0.0;
-              betay_cell(p.I) = 0.0;
-              betaz_cell(p.I) = 0.0;
+              betax(p.I) = 0.0;
+              betay(p.I) = 0.0;
+              betaz(p.I) = 0.0;
             }
           }
-          gxx_cell(p.I) -=
+          gxx(p.I) -=
               ((TOV_Num_TOVs + TOV_Use_Old_Initial_Data - 1) / my_psi4);
-          gyy_cell(p.I) = gxx_cell(p.I);
-          gzz_cell(p.I) = gxx_cell(p.I);
+          gyy(p.I) = gxx(p.I);
+          gzz(p.I) = gxx(p.I);
         }
       });
-
-  grid.loop_int<0, 0, 0>(grid.nghostzones,
-                         [=] CCTK_HOST(const Loop::PointDesc &p)
-                             CCTK_ATTRIBUTE_ALWAYS_INLINE {
-                               gxx(p.I) = calc_avg_c2v(gxx_cell, p);
-                               gxy(p.I) = calc_avg_c2v(gxy_cell, p);
-                               gxz(p.I) = calc_avg_c2v(gxz_cell, p);
-                               gyy(p.I) = calc_avg_c2v(gyy_cell, p);
-                               gyz(p.I) = calc_avg_c2v(gyz_cell, p);
-                               gzz(p.I) = calc_avg_c2v(gzz_cell, p);
-
-                               kxx(p.I) = calc_avg_c2v(kxx_cell, p);
-                               kxy(p.I) = calc_avg_c2v(kxy_cell, p);
-                               kxz(p.I) = calc_avg_c2v(kxz_cell, p);
-                               kyy(p.I) = calc_avg_c2v(kyy_cell, p);
-                               kyz(p.I) = calc_avg_c2v(kyz_cell, p);
-                               kzz(p.I) = calc_avg_c2v(kzz_cell, p);
-
-                               alp(p.I) = calc_avg_c2v(alp_cell, p);
-                               betax(p.I) = calc_avg_c2v(betax_cell, p);
-                               betay(p.I) = calc_avg_c2v(betay_cell, p);
-                               betaz(p.I) = calc_avg_c2v(betaz_cell, p);
-
-                               dtalp(p.I) = calc_avg_c2v(dtalp_cell, p);
-                               dtbetax(p.I) = calc_avg_c2v(dtbetax_cell, p);
-                               dtbetay(p.I) = calc_avg_c2v(dtbetay_cell, p);
-                               dtbetaz(p.I) = calc_avg_c2v(dtbetaz_cell, p);
-                             });
 
   CCTK_INFO("Done interpolation for TOV ADM variables.");
 
