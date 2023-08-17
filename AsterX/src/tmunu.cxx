@@ -37,18 +37,18 @@ extern "C" void AsterX_Tmunu(CCTK_ARGUMENTS) {
 
   /* Loop over vertex-centers for the entire grid (0 to n-1 cells in each
    * direction) */
-  grid.loop_int_device<0, 0, 0>(
+  grid.loop_int_device<1, 1, 1>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         /* Interpolating mhd quantities to vertices */
 
-        const CCTK_REAL rho_avg = calc_avg_c2v(rho, p);
+        const CCTK_REAL rho_avg = rho(p.I);
         const vec<CCTK_REAL, 3> vup_avg(
-            [&](int i) ARITH_INLINE { return calc_avg_c2v(gf_vels(i), p); });
-        const CCTK_REAL eps_avg = calc_avg_c2v(eps, p);
-        const CCTK_REAL press_avg = calc_avg_c2v(press, p);
+            [&](int i) ARITH_INLINE { return gf_vels(i)(p.I); });
+        const CCTK_REAL eps_avg = eps(p.I);
+        const CCTK_REAL press_avg = press(p.I);
         const vec<CCTK_REAL, 3> Bup_avg(
-            [&](int i) ARITH_INLINE { return calc_avg_c2v(gf_Bvecs(i), p); });
+            [&](int i) ARITH_INLINE { return gf_Bvecs(i)(p.I); });
 
         const smat<CCTK_REAL, 3> g_low{gxx(p.I), gxy(p.I), gxz(p.I),
                                        gyy(p.I), gyz(p.I), gzz(p.I)};
