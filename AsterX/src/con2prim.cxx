@@ -56,7 +56,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType &eos_cold,
                                          &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
     /* Get covariant metric */
     const smat<CCTK_REAL, 3> glo(
-        [&](int i, int j) ARITH_INLINE { return calc_avg_v2c(gf_g(i, j), p); });
+        [&](int i, int j) ARITH_INLINE { return gf_g(i, j)(p.I); });
 
     /* Calculate inverse of 3-metric */
     const CCTK_REAL spatial_detg = calc_det(glo);

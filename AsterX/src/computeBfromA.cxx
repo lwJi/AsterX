@@ -91,12 +91,12 @@ extern "C" void AsterX_ComputeBFromdB(CCTK_ARGUMENTS) {
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         /* Interpolate metric terms from vertices to center */
         metric g;
-        g.gxx = calc_avg_v2c(gxx, p);
-        g.gxy = calc_avg_v2c(gxy, p);
-        g.gxz = calc_avg_v2c(gxz, p);
-        g.gyy = calc_avg_v2c(gyy, p);
-        g.gyz = calc_avg_v2c(gyz, p);
-        g.gzz = calc_avg_v2c(gzz, p);
+        g.gxx = gxx(p.I);
+        g.gxy = gxy(p.I);
+        g.gxz = gxz(p.I);
+        g.gyy = gyy(p.I);
+        g.gyz = gyz(p.I);
+        g.gzz = gzz(p.I);
 
         /* Determinant of spatial metric */
         const smat<CCTK_REAL, 3> gmat{g.gxx, g.gxy, g.gxz, g.gyy, g.gyz, g.gzz};

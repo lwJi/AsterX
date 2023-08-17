@@ -29,14 +29,14 @@ template <int FDORDER> void SourceTerms(CCTK_ARGUMENTS) {
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         /* Computing metric components at cell centers */
-        const CCTK_REAL alp_avg = calc_avg_v2c(alp, p);
+        const CCTK_REAL alp_avg = alp(p.I);
         const vec<CCTK_REAL, 3> beta_avg(
-            [&](int i) ARITH_INLINE { return calc_avg_v2c(gf_beta(i), p); });
+            [&](int i) ARITH_INLINE { return gf_beta(i)(p.I); });
         const smat<CCTK_REAL, 3> g_avg([&](int i, int j) ARITH_INLINE {
-          return calc_avg_v2c(gf_g(i, j), p);
+          return gf_g(i, j)(p.I);
         });
         const smat<CCTK_REAL, 3> k_avg([&](int i, int j) ARITH_INLINE {
-          return calc_avg_v2c(gf_k(i, j), p);
+          return gf_k(i, j)(p.I);
         });
 
         /* Determinant of spatial metric */
@@ -52,16 +52,16 @@ template <int FDORDER> void SourceTerms(CCTK_ARGUMENTS) {
          * four edge-centered values are then interpolated to the cell-center
          * using 2nd order interpolation */
         const vec<CCTK_REAL, 3> d_alp([&](int k) ARITH_INLINE {
-          return calc_fd_v2c<FDORDER>(alp, p, k);
+          return calc_fd4_c2c(alp, p, k);
         });
         const vec<vec<CCTK_REAL, 3>, 3> d_beta([&](int k) ARITH_INLINE {
           return vec<CCTK_REAL, 3>([&](int i) ARITH_INLINE {
-            return calc_fd_v2c<FDORDER>(gf_beta(i), p, k);
+            return calc_fd4_c2c(gf_beta(i), p, k);
           });
         });
         const vec<smat<CCTK_REAL, 3>, 3> d_g([&](int k) ARITH_INLINE {
           return smat<CCTK_REAL, 3>([&](int i, int j) ARITH_INLINE {
-            return calc_fd_v2c<FDORDER>(gf_g(i, j), p, k);
+            return calc_fd4_c2c(gf_g(i, j), p, k);
           });
         });
 

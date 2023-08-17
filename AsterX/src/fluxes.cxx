@@ -174,11 +174,11 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType &eos_th) {
     });
 
     /* Interpolate metric components from vertices to faces */
-    const CCTK_REAL alp_avg = calc_avg_v2f(alp, p, dir);
+    const CCTK_REAL alp_avg = calc_avg_c2f(alp, p, dir);
     const vec<CCTK_REAL, 3> betas_avg(
-        [&](int i) ARITH_INLINE { return calc_avg_v2f(gf_beta(i), p, dir); });
+        [&](int i) ARITH_INLINE { return calc_avg_c2f(gf_beta(i), p, dir); });
     const smat<CCTK_REAL, 3> g_avg([&](int i, int j) ARITH_INLINE {
-      return calc_avg_v2f(gf_g(i, j), p, dir);
+      return calc_avg_c2f(gf_g(i, j), p, dir);
     });
 
     /* determinant of spatial metric */
@@ -442,21 +442,25 @@ void CalcAuxForAvecPsi(CCTK_ARGUMENTS) {
         const vec<CCTK_REAL, 3> A_vert([&](int i) ARITH_INLINE {
           return calc_avg_e2v(gf_Avecs(i), p, i);
         });
-        const smat<CCTK_REAL, 3> g{gxx(p.I), gxy(p.I), gxz(p.I),
-                                   gyy(p.I), gyz(p.I), gzz(p.I)};
-        const vec<CCTK_REAL, 3> betas{betax(p.I), betay(p.I), betaz(p.I)};
+        const smat<CCTK_REAL, 3> g{calc_avg_c2v(gxx, p), calc_avg_c2v(gxy, p),
+                                   calc_avg_c2v(gxz, p), calc_avg_c2v(gyy, p),
+                                   calc_avg_c2v(gyz, p), calc_avg_c2v(gzz, p)};
+        const vec<CCTK_REAL, 3> betas{calc_avg_c2v(betax, p),
+                                      calc_avg_c2v(betay, p),
+                                      calc_avg_c2v(betaz, p)};
+        const alp_avg = calc_avg_c2v(alp, p);
         const CCTK_REAL detg = calc_det(g);
         const CCTK_REAL sqrtg = sqrt(detg);
         const smat<CCTK_REAL, 3> ug = calc_inv(g, detg);
         const vec<CCTK_REAL, 3> Aup = calc_contraction(ug, A_vert);
 
-        Fx(p.I) = alp(p.I) * sqrtg * Aup(0);
-        Fy(p.I) = alp(p.I) * sqrtg * Aup(1);
-        Fz(p.I) = alp(p.I) * sqrtg * Aup(2);
+        Fx(p.I) = alp_avg * sqrtg * Aup(0);
+        Fy(p.I) = alp_avg * sqrtg * Aup(1);
+        Fz(p.I) = alp_avg * sqrtg * Aup(2);
         Fbetax(p.I) = betas(0) * Psi(p.I);
         Fbetay(p.I) = betas(1) * Psi(p.I);
         Fbetaz(p.I) = betas(2) * Psi(p.I);
-        G(p.I) = alp(p.I) * Psi(p.I) / sqrtg - calc_contraction(betas, A_vert);
+        G(p.I) = alp_avg * Psi(p.I) / sqrtg - calc_contraction(betas, A_vert);
       });
 }
 
