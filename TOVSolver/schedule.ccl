@@ -45,17 +45,11 @@ if (TOV_Cowling) {
   schedule TOV_C_Exact_ADM IN CCTK_POSTREGRID BEFORE ODESolvers_PostStep
   {
     LANG: C
-    WRITES: metric_cell(everywhere)
-    WRITES: lapse_cell(everywhere)
-    WRITES: shift_cell(everywhere)
-    WRITES: curv_cell(everywhere)
     WRITES: ADMBaseX::metric(interior)
     WRITES: ADMBaseX::lapse(interior)
     WRITES: ADMBaseX::shift(interior)
     WRITES: ADMBaseX::curv(interior)
 
-    WRITES: dtlapse_cell(everywhere)
-    WRITES: dtshift_cell(everywhere)
     WRITES: ADMBaseX::dtlapse(interior)
     WRITES: ADMBaseX::dtshift(interior)
 
@@ -73,17 +67,11 @@ schedule TOV_C_Exact IN HydroBaseX_InitialData
   WRITES: HydroBaseX::press(everywhere)
   WRITES: AsterX::Avec_x(everywhere) AsterX::Avec_y(everywhere) AsterX::Avec_z(everywhere)
 
-  WRITES: metric_cell(everywhere)
-  WRITES: lapse_cell(everywhere)
-  WRITES: shift_cell(everywhere)
-  WRITES: curv_cell(everywhere)
   WRITES: ADMBaseX::metric(interior)
   WRITES: ADMBaseX::lapse(interior)
   WRITES: ADMBaseX::shift(interior)
   WRITES: ADMBaseX::curv(interior)
 
-  WRITES: dtlapse_cell(everywhere)
-  WRITES: dtshift_cell(everywhere)
   WRITES: ADMBaseX::dtlapse(interior)
   WRITES: ADMBaseX::dtshift(interior)
 

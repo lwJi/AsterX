@@ -448,7 +448,7 @@ void CalcAuxForAvecPsi(CCTK_ARGUMENTS) {
         const vec<CCTK_REAL, 3> betas{calc_avg_c2v(betax, p),
                                       calc_avg_c2v(betay, p),
                                       calc_avg_c2v(betaz, p)};
-        const alp_avg = calc_avg_c2v(alp, p);
+        const CCTK_REAL alp_avg = calc_avg_c2v(alp, p);
         const CCTK_REAL detg = calc_det(g);
         const CCTK_REAL sqrtg = sqrt(detg);
         const smat<CCTK_REAL, 3> ug = calc_inv(g, detg);
