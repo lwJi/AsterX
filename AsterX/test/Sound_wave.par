@@ -2,7 +2,6 @@ ActiveThorns = "
     CarpetX
     IOUtil
     ODESolvers
-    SystemTopology
     ADMBaseX
     HydroBaseX
     TmunuBaseX

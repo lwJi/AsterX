@@ -702,14 +702,14 @@ CarpetX/ADMBaseX
 CarpetX/Algo
 CarpetX/Arith
 CarpetX/CarpetX
-CarpetX/Coordinates
+CarpetX/CoordinatesX
 CarpetX/Derivs
 CarpetX/ErrorEstimator
 CarpetX/HydroBaseX
 CarpetX/Loop
 CarpetX/ODESolvers
 CarpetX/PDESolvers
-CarpetX/Poisson
+CarpetX/PoissonX
 CarpetX/TestArrayGroup
 CarpetX/TestInterpolate
 CarpetX/TestNorms

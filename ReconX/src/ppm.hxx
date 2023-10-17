@@ -176,7 +176,7 @@ ppm_reconstruct(T gf_Immm, T gf_Imm, T gf_Im, T gf_Ip, T gf_Ipp, T gf_Ippp,
                        press_Im, press_Ipp, press_Ippp, vel_dir_Im, vel_dir_Ipp,
                        gf_is_rho, reconstruct_params)};
 
-  return {rc_Im.at(1), rc_Ip.at(0)};
+  return {rc_Im[1], rc_Ip[0]};
 }
 
 } // namespace ReconX

@@ -226,20 +226,19 @@ Numerical/AEILocalInterp
 !TYPE     = git
 !URL      = https://github.com/eschnett/CarpetX.git
 !REPO_PATH= $2
-!REPO_BRANCH = eschnett/crusher
 !CHECKOUT =
-CarpetX/ADMBase
+CarpetX/ADMBaseX
 CarpetX/Algo
 CarpetX/Arith
 CarpetX/CarpetX
-CarpetX/Coordinates
+CarpetX/CoordinatesX
 CarpetX/Derivs
 CarpetX/ErrorEstimator
-CarpetX/HydroBase
+CarpetX/HydroBaseX
 CarpetX/Loop
 CarpetX/ODESolvers
 #CarpetX/PDESolvers
-#CarpetX/Poisson2
+#CarpetX/PoissonX
 CarpetX/TestArrayGroup
 CarpetX/TestInterpolate
 CarpetX/TestNorms
@@ -247,7 +246,7 @@ CarpetX/TestODESolvers
 CarpetX/TestODESolvers2
 CarpetX/TestProlongate
 CarpetX/TestSymmetries
-CarpetX/TmunuBase
+CarpetX/TmunuBaseX
 CarpetX/WaveToyX
 
 # SpacetimeX thorns
@@ -262,7 +261,7 @@ CarpetX/WaveToyX
 SpacetimeX/Cowling
 SpacetimeX/Punctures
 SpacetimeX/StaticTrumpet
-SpacetimeX/TwoPunctures
+SpacetimeX/TwoPuncturesX
 SpacetimeX/Weyl
 SpacetimeX/Z4c
 
@@ -272,7 +271,6 @@ SpacetimeX/Z4c
 !TYPE     = git
 !URL      = https://github.com/jaykalinani/AsterX.git
 !REPO_PATH= $2
-!REPO_BRANCH = frontier
 !CHECKOUT =
 AsterX/AsterSeeds
 AsterX/AsterX

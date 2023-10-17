@@ -109,7 +109,7 @@ wenoz_reconstruct(T gf_Immm, T gf_Imm, T gf_Im, T gf_Ip, T gf_Ipp, T gf_Ippp,
   const auto rc_Im{wenoz(gf_Immm, gf_Imm, gf_Im, gf_Ip, gf_Ipp, weno_eps)};
   const auto rc_Ip{wenoz(gf_Imm, gf_Im, gf_Ip, gf_Ipp, gf_Ippp, weno_eps)};
 
-  return {rc_Im.at(1), rc_Ip.at(0)};
+  return {rc_Im[1], rc_Ip[0]};
 }
 
 } // namespace ReconX

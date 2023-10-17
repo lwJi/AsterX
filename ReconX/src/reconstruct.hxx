@@ -94,7 +94,7 @@ reconstruct(const GF3D2<const CCTK_REAL> &gf_var, const PointDesc &p,
         eppm(gf_var, cells_Ip, gf_is_press, gf_press, gf_vel_dir,
              reconstruct_params);
 
-    return array<CCTK_REAL, 2>{rc_Im.at(1), rc_Ip.at(0)};
+    return array<CCTK_REAL, 2>{rc_Im[1], rc_Ip[0]};
   }
 
   default:
