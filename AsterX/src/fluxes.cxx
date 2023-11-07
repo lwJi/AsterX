@@ -443,13 +443,14 @@ void CalcAuxForAvecPsi(CCTK_ARGUMENTS) {
         const vec<CCTK_REAL, 3> A_vert([&](int i) ARITH_INLINE {
           return calc_avg_e2v(gf_Avecs(i), p, i);
         });
-        const smat<CCTK_REAL, 3> g{calc_avg_c2v(gxx, p), calc_avg_c2v(gxy, p),
-                                   calc_avg_c2v(gxz, p), calc_avg_c2v(gyy, p),
-                                   calc_avg_c2v(gyz, p), calc_avg_c2v(gzz, p)};
-        const vec<CCTK_REAL, 3> betas{calc_avg_c2v(betax, p),
-                                      calc_avg_c2v(betay, p),
-                                      calc_avg_c2v(betaz, p)};
-        const CCTK_REAL alp_avg = calc_avg_c2v(alp, p);
+        const smat<CCTK_REAL, 3> g{
+            calc_avg_c2v_4th(gxx, p), calc_avg_c2v_4th(gxy, p),
+            calc_avg_c2v_4th(gxz, p), calc_avg_c2v_4th(gyy, p),
+            calc_avg_c2v_4th(gyz, p), calc_avg_c2v_4th(gzz, p)};
+        const vec<CCTK_REAL, 3> betas{calc_avg_c2v_4th(betax, p),
+                                      calc_avg_c2v_4th(betay, p),
+                                      calc_avg_c2v_4th(betaz, p)};
+        const CCTK_REAL alp_avg = calc_avg_c2v_4th(alp, p);
         const CCTK_REAL detg = calc_det(g);
         const CCTK_REAL sqrtg = sqrt(detg);
         const smat<CCTK_REAL, 3> ug = calc_inv(g, detg);
