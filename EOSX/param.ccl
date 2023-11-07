@@ -2,10 +2,11 @@
 
 restricted:
 
-KEYWORD evol_eos_name "Name of active EOS for evolution"
-{
-  "IdealGas" :: "Ideal Gas"
-  "none" :: "No EOS available"
+KEYWORD evolution_eos "Equation of state employed during evolution" STEERABLE=never
+{ 
+  "IdealGas" :: ""
+  "Hybrid" :: "" 
+  "Tabulated" :: ""
 } "IdealGas"
 
 #parameters for Polytropic EOS

@@ -2,7 +2,7 @@
  * author  Frank Loeffler, converted from fortran thorn by Ian Hawk
  *                         modified to be compatible with CarpetX by Johnny
  *                         original thorn from
- * Cactus/arrangements/EinsteinInitialData/TOVSolver date    2022/07/24 desc
+ * Cactus/arrangements/EinsteinInitialData/TOVSolverX date    2022/07/24 desc
  * Scheduled functions for TOV initial data compatible with CarpetX grid
  */
 
@@ -17,7 +17,7 @@
 
 // initial setup adapted from Springel+2010
 
-namespace TOVSolver {
+namespace TOVSolverX {
 using namespace Loop;
 
 CCTK_REAL *TOV_Surface = 0;
@@ -33,7 +33,7 @@ CCTK_REAL *TOV_mbary_1d = 0;
 CCTK_REAL *TOV_rprop_1d = 0;
 
 /*@@
-   @routine    TOV_Exact
+   @routine    TOVX_Exact
    @date       Fri Jul 29 10:00:00 2022
    @author     Frank Loeffler, converted fortran routine by Ian Hawke
    @desc
@@ -44,8 +44,8 @@ CCTK_REAL *TOV_rprop_1d = 0;
    @history
    @endhistory
 @@*/
-extern "C" void TOV_C_Exact(CCTK_ARGUMENTS) {
-  DECLARE_CCTK_ARGUMENTSX_TOV_C_Exact;
+extern "C" void TOVX_C_Exact(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_TOVX_C_Exact;
   DECLARE_CCTK_PARAMETERS;
 
   assert(TOV_Surface != 0);
@@ -156,7 +156,7 @@ extern "C" void TOV_C_Exact(CCTK_ARGUMENTS) {
           int star_i = star * TOV_Num_Radial;
 
           /* do the actual interpolation */
-          TOV_C_interp_tov_isotropic(
+          TOVX_C_interp_tov_isotropic(
               star, TOV_Num_Radial, TOV_Fast_Interpolation,
               &(TOV_press_1d_local[star_i]), &(TOV_phi_1d_local[star_i]),
               &(TOV_rbar_1d_local[star_i]), &(TOV_r_1d_local[star_i]),
@@ -332,7 +332,7 @@ extern "C" void TOV_C_Exact(CCTK_ARGUMENTS) {
 } // TOV_Exact_Hydro
 
 /*@@
-   @routine    TOV_Exact_ADM
+   @routine    TOVX_Exact_ADM
    @date       Thu Oct 24 14:30:00 2002
    @author     Frank Loeffler, converted fortran routine by Ian Hawke
    @desc
@@ -344,8 +344,8 @@ variables
    @history
    @endhistory
 @@*/
-extern "C" void TOV_C_Exact_ADM(CCTK_ARGUMENTS) {
-  DECLARE_CCTK_ARGUMENTSX_TOV_C_Exact_ADM;
+extern "C" void TOVX_C_Exact_ADM(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_TOVX_C_Exact_ADM;
   DECLARE_CCTK_PARAMETERS;
 
   assert(TOV_Surface != 0);
@@ -428,7 +428,7 @@ extern "C" void TOV_C_Exact_ADM(CCTK_ARGUMENTS) {
           int star_i = star * TOV_Num_Radial;
 
           /* do the actual interpolation */
-          TOV_C_interp_tov_isotropic(
+          TOVX_C_interp_tov_isotropic(
               star, TOV_Num_Radial, TOV_Fast_Interpolation,
               &(TOV_press_1d_local[star_i]), &(TOV_phi_1d_local[star_i]),
               &(TOV_rbar_1d_local[star_i]), &(TOV_r_1d_local[star_i]),
@@ -547,7 +547,7 @@ extern "C" void TOV_C_Exact_ADM(CCTK_ARGUMENTS) {
 } // TOV_Exact_ADM
 
 /*@@
-   @routine    TOV_Integrate_RHS
+   @routine    TOVX_Integrate_RHS
    @date       Thu Oct 24 14:30:00 2002
    @author     Frank Loeffler, converted fortran routine by Ian Hawke
    @desc
@@ -559,8 +559,8 @@ extern "C" void TOV_C_Exact_ADM(CCTK_ARGUMENTS) {
    @history
    @endhistory
 @@*/
-extern "C" void TOV_C_Integrate_RHS(CCTK_ARGUMENTS) {
-  DECLARE_CCTK_ARGUMENTS_TOV_C_Integrate_RHS;
+extern "C" void TOVX_C_Integrate_RHS(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTS_TOVX_C_Integrate_RHS;
   DECLARE_CCTK_PARAMETERS;
 
   CCTK_INT star, star_i, i, TOV_Surface_Index;
@@ -591,13 +591,13 @@ extern "C" void TOV_C_Integrate_RHS(CCTK_ARGUMENTS) {
      * the old initial data. In this case we have to use what we get */
 
     /* clear arrays first */
-    TOV_C_fill(&(TOV_press_1d[star_i]), TOV_Num_Radial, 0.0);
-    TOV_C_fill(&(TOV_m_1d[star_i]), TOV_Num_Radial, 0.0);
-    TOV_C_fill(&(TOV_phi_1d[star_i]), TOV_Num_Radial, 0.0);
-    TOV_C_fill(&(TOV_rbar_1d[star_i]), TOV_Num_Radial, 0.0);
-    TOV_C_fill(&(TOV_r_1d[star_i]), TOV_Num_Radial, 0.0);
-    TOV_C_fill(&(TOV_mbary_1d[star_i]), TOV_Num_Radial, 0.0);
-    TOV_C_fill(&(TOV_rprop_1d[star_i]), TOV_Num_Radial, 0.0);
+    TOVX_C_fill(&(TOV_press_1d[star_i]), TOV_Num_Radial, 0.0);
+    TOVX_C_fill(&(TOV_m_1d[star_i]), TOV_Num_Radial, 0.0);
+    TOVX_C_fill(&(TOV_phi_1d[star_i]), TOV_Num_Radial, 0.0);
+    TOVX_C_fill(&(TOV_rbar_1d[star_i]), TOV_Num_Radial, 0.0);
+    TOVX_C_fill(&(TOV_r_1d[star_i]), TOV_Num_Radial, 0.0);
+    TOVX_C_fill(&(TOV_mbary_1d[star_i]), TOV_Num_Radial, 0.0);
+    TOVX_C_fill(&(TOV_rprop_1d[star_i]), TOV_Num_Radial, 0.0);
 
     /* set start values */
     TOV_press_1d[star_i] = TOV_K * pow(rho_central, TOV_Gamma);
@@ -628,23 +628,23 @@ extern "C" void TOV_C_Integrate_RHS(CCTK_ARGUMENTS) {
 
       /* usual RK4 */
       RKLOOP in_data[rk] = old_data[rk];
-      TOV_C_fill(source_data, 6, 0.0);
+      TOVX_C_fill(source_data, 6, 0.0);
 
-      TOV_C_Source_RHS(TOV_r_1d[i], TOV_K, TOV_Gamma, in_data, source_data);
+      TOVX_C_Source_RHS(TOV_r_1d[i], TOV_K, TOV_Gamma, in_data, source_data);
 
       RKLOOP k1[rk] = TOV_dr[star] * source_data[rk];
       RKLOOP in_data[rk] = old_data[rk] + 0.5 * k1[rk];
-      TOV_C_Source_RHS(TOV_r_1d[i] + 0.5 * TOV_dr[star], TOV_K, TOV_Gamma,
+      TOVX_C_Source_RHS(TOV_r_1d[i] + 0.5 * TOV_dr[star], TOV_K, TOV_Gamma,
                        in_data, source_data);
 
       RKLOOP k2[rk] = TOV_dr[star] * source_data[rk];
       RKLOOP in_data[rk] = old_data[rk] + 0.5 * k2[rk];
-      TOV_C_Source_RHS(TOV_r_1d[i] + 0.5 * TOV_dr[star], TOV_K, TOV_Gamma,
+      TOVX_C_Source_RHS(TOV_r_1d[i] + 0.5 * TOV_dr[star], TOV_K, TOV_Gamma,
                        in_data, source_data);
 
       RKLOOP k3[rk] = TOV_dr[star] * source_data[rk];
       RKLOOP in_data[rk] = old_data[rk] + k3[rk];
-      TOV_C_Source_RHS(TOV_r_1d[i] + TOV_dr[star], TOV_K, TOV_Gamma, in_data,
+      TOVX_C_Source_RHS(TOV_r_1d[i] + TOV_dr[star], TOV_K, TOV_Gamma, in_data,
                        source_data);
       RKLOOP k4[rk] = TOV_dr[star] * source_data[rk];
       RKLOOP new_data[rk] =
@@ -728,10 +728,10 @@ extern "C" void TOV_C_Integrate_RHS(CCTK_ARGUMENTS) {
                  TOV_K, TOV_Gamma);
 
   CCTK_INFO("Done Integrating for TOV 1D data");
-} // TOV_C_Integrate_RHS
+} // TOVX_C_Integrate_RHS
 
-extern "C" void TOV_C_AllocateMemory(CCTK_ARGUMENTS) {
-  DECLARE_CCTK_ARGUMENTS_TOV_C_AllocateMemory;
+extern "C" void TOVX_C_AllocateMemory(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTS_TOVX_C_AllocateMemory;
   DECLARE_CCTK_PARAMETERS;
 
   assert(TOV_Surface == 0);
@@ -767,10 +767,10 @@ extern "C" void TOV_C_AllocateMemory(CCTK_ARGUMENTS) {
       TOV_Num_Radial * TOV_Num_TOVs * sizeof(CCTK_REAL));
   TOV_rprop_1d = (CCTK_REAL *)amrex::The_Arena()->alloc(
       TOV_Num_Radial * TOV_Num_TOVs * sizeof(CCTK_REAL));
-} // TOV_C_AllocateMemory
+} // TOVX_C_AllocateMemory
 
-extern "C" void TOV_C_FreeMemory(CCTK_ARGUMENTS) {
-  DECLARE_CCTK_ARGUMENTS_TOV_C_AllocateMemory;
+extern "C" void TOVX_C_FreeMemory(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTS_TOVX_C_AllocateMemory;
   DECLARE_CCTK_PARAMETERS;
 
   assert(TOV_Surface != 0);
@@ -806,7 +806,7 @@ extern "C" void TOV_C_FreeMemory(CCTK_ARGUMENTS) {
   TOV_m_1d = 0;
   TOV_mbary_1d = 0;
   TOV_rprop_1d = 0;
-} // TOV_FreeMemory
+} // TOVX_FreeMemory
 
 #include "external.hxx"
-} // namespace TOVSolver
+} // namespace TOVSolverX

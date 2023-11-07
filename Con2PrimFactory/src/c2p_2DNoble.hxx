@@ -15,7 +15,8 @@ public:
   /* Constructor */
   template <typename EOSType>
   CCTK_HOST CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE inline c2p_2DNoble(
-      EOSType &eos_th, CCTK_INT maxIter, CCTK_REAL tol);
+      EOSType &eos_th, atmosphere &atm, CCTK_INT maxIter, CCTK_REAL tol,
+      CCTK_REAL rho_str, CCTK_REAL vwlim, CCTK_REAL B_lim, bool ye_len);
   CCTK_HOST CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE inline CCTK_REAL
       get_Ssq_Exact(vec<CCTK_REAL, 3> &mom,
                     const smat<CCTK_REAL, 3> &gup) const;
@@ -28,6 +29,8 @@ public:
       get_WLorentz_vsq_bsq_Seeds(vec<CCTK_REAL, 3> &B_up,
                                  vec<CCTK_REAL, 3> &v_up,
                                  const smat<CCTK_REAL, 3> &glo) const;
+  CCTK_HOST CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE inline void
+  set_to_nan(prim_vars &pv, cons_vars &cv) const;
 
   /* Called by 2DNoble */
   CCTK_HOST CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE inline CCTK_REAL
@@ -47,7 +50,7 @@ public:
   template <typename EOSType>
   CCTK_HOST CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE inline void
   solve(EOSType &eos_th, prim_vars &pv, prim_vars &pv_seeds, cons_vars cv,
-        const smat<CCTK_REAL, 3> &glo, CCTK_INT &c2p_succeeded) const;
+        const smat<CCTK_REAL, 3> &glo, c2p_report &rep) const;
 
   /* Destructor */
   CCTK_HOST CCTK_DEVICE ~c2p_2DNoble();
@@ -57,10 +60,19 @@ public:
 template <typename EOSType>
 CCTK_HOST
     CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE inline c2p_2DNoble::c2p_2DNoble(
-        EOSType &eos_th, CCTK_INT maxIter, CCTK_REAL tol) {
+        EOSType &eos_th, atmosphere &atm, CCTK_INT maxIter, CCTK_REAL tol,
+        CCTK_REAL rho_str, CCTK_REAL vwlim, CCTK_REAL B_lim, bool ye_len) {
+
   GammaIdealFluid = eos_th.gamma;
   maxIterations = maxIter;
   tolerance = tol;
+  rho_strict = rho_str;
+  ye_lenient = ye_len;
+  vw_lim = vwlim;
+  w_lim = sqrt(1.0 + vw_lim * vw_lim);
+  v_lim = vw_lim / w_lim;
+  Bsq_lim = B_lim * B_lim;
+  atmo = atm;
 }
 
 CCTK_HOST CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE inline CCTK_REAL
@@ -178,11 +190,23 @@ template <typename EOSType>
 CCTK_HOST CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE inline void
 c2p_2DNoble::solve(EOSType &eos_th, prim_vars &pv, prim_vars &pv_seeds,
                    cons_vars cv, const smat<CCTK_REAL, 3> &glo,
-                   CCTK_INT &c2p_succeeded) const {
+                   c2p_report &rep) const {
 
-  /* Calculate inverse of 3-metric */
+  ROOTSTAT status = ROOTSTAT::SUCCESS;
+  rep.iters = 0;
+  rep.adjust_cons = false;
+  rep.set_atmo = false;
+  rep.status = c2p_report::SUCCESS;
+
+  /* Check validity of the 3-metric and compute its inverse */
   const CCTK_REAL spatial_detg = calc_det(glo);
   const CCTK_REAL sqrt_detg = sqrt(spatial_detg);
+
+  if ((!isfinite(sqrt_detg)) || (sqrt_detg <= 0)) {
+    rep.set_invalid_detg(sqrt_detg);
+    set_to_nan(pv, cv);
+    return;
+  }
   const smat<CCTK_REAL, 3> gup = calc_inv(glo, spatial_detg);
 
   /* Undensitize the conserved vars */
@@ -191,6 +215,12 @@ c2p_2DNoble::solve(EOSType &eos_th, prim_vars &pv, prim_vars &pv_seeds,
   cv.mom /= sqrt_detg;
   cv.dBvec /= sqrt_detg;
   cv.dYe /= sqrt_detg;
+
+  if (cv.dens <= atmo.rho_cut) {
+    rep.set_atmo_set();
+    atmo.set(pv, cv, glo);
+    return;
+  }
 
   // compute primitive B seed from conserved B of current time step for better
   // guess
@@ -203,7 +233,26 @@ c2p_2DNoble::solve(EOSType &eos_th, prim_vars &pv, prim_vars &pv_seeds,
       pv_seeds.Bvec, pv_seeds.vel, glo); // this also recomputes pv_seeds.w_lor
   pv_seeds.w_lor = w_vsq_bsq(0);
   CCTK_REAL vsq_seed = w_vsq_bsq(1);
-  // const CCTK_REAL bsq = w_vsq_bsq(2);
+  // const CCTK_REAL bsq = w_vsq_bsq(2); // small b^2
+
+  if ((!isfinite(cv.dens)) || (!isfinite(Ssq)) || (!isfinite(Bsq)) ||
+      (!isfinite(BiSi)) || (!isfinite(cv.dYe))) {
+    rep.set_nans_in_cons(cv.dens, Ssq, Bsq, BiSi, cv.dYe);
+    set_to_nan(pv, cv);
+    return;
+  }
+
+  if (Bsq < 0) {
+    rep.set_neg_Bsq(Bsq);
+    set_to_nan(pv, cv);
+    return;
+  }
+
+  if (Bsq > Bsq_lim) {
+    rep.set_B_limit(Bsq);
+    set_to_nan(pv, cv);
+    return;
+  }
 
   /* update rho seed from cv and wlor */
   // rho consistent with cv.rho should be better guess than rho from last
@@ -244,12 +293,11 @@ c2p_2DNoble::solve(EOSType &eos_th, prim_vars &pv, prim_vars &pv_seeds,
   CCTK_REAL errx = 1.;
   CCTK_REAL df = 1.;
   CCTK_REAL f = 1.;
-  c2p_succeeded = false; // false
 
   CCTK_INT k;
   for (k = 1; k <= maxIterations; k++) {
 
-    /* Expressions for the jacobian are adopted from the Noble C2P
+    /* Expressions for the jacobian are adapted from the Noble C2P
     implementation in the Spritz code. As the analytical form of the equations
     is known, the Newton-Raphson step can be computed explicitly */
 
@@ -306,21 +354,32 @@ c2p_2DNoble::solve(EOSType &eos_th, prim_vars &pv, prim_vars &pv_seeds,
 
     if (x[1] < 0.0) {
       x[1] = 0.0;
-    } else {
+    }
+
+    else {
       if (x[1] >= 1.0) {
         x[1] = dv;
       }
     }
+  }
 
-    if (fabs(errx) <= tolerance) {
-      c2p_succeeded = true;
-      break;
-    }
+  // storing number of iterations taken to find the root
+  rep.iters = k;
+
+  if (fabs(errx) <= tolerance) {
+    rep.status = c2p_report::SUCCESS;
+    status = ROOTSTAT::SUCCESS;
+  } else {
+    // set status to root not converged
+    rep.set_root_conv();
+    status = ROOTSTAT::NOT_CONVERGED;
   }
 
   // Check for bad untrapped divergences
   if ((!isfinite(f)) || (!isfinite(df))) {
-    c2p_succeeded = false;
+    rep.set_root_bracket();
+    // TODO: currently, divergences in f and df are marked as failed bracketing.
+    // Change this.
   }
 
   /* Calculate primitives from Z and W */
@@ -328,8 +387,69 @@ c2p_2DNoble::solve(EOSType &eos_th, prim_vars &pv, prim_vars &pv_seeds,
   CCTK_REAL vsq_Sol = x[1];
 
   /* Write prims if C2P succeeded */
-  /* TODO: report error */
   WZ2Prim(Z_Sol, vsq_Sol, Bsq, BiSi, eos_th, pv, cv, gup);
+
+  // set to atmo if computed rho is below floor density
+  if (pv.rho < atmo.rho_cut) {
+    rep.set_atmo_set();
+    atmo.set(pv, cv, glo);
+    return;
+  }
+
+  // check the validity of the computed eps
+  auto rgeps = eos_th.range_eps_from_valid_rho_ye(pv.rho, pv.Ye);
+  if (pv.eps > rgeps.max) {
+    //printf("(pv.eps > rgeps.max) is true, adjusting cons.. \n");
+    rep.adjust_cons = true;
+    if (pv.rho >= rho_strict) {
+      rep.set_range_eps(pv.eps); // sets adjust_cons to false by default
+      rep.adjust_cons = true;
+      set_to_nan(pv, cv);
+      return;
+    }
+  } else if (pv.eps < rgeps.min) {
+    /*
+    printf(
+        "(pv.eps < rgeps.min) is true! pv.eps, rgeps.min: %26.16e, %26.16e \n",
+        pv.eps, rgeps.min);
+    printf(" Not adjusting cons.. \n");
+    */
+    rep.set_range_eps(pv.eps); // sets adjust_cons to false by default
+  }
+
+  // TODO: check validity for Ye
+
+  // check if computed velocities are within the specified limit
+  CCTK_REAL sol_v = sqrt(vsq_Sol);
+  if (sol_v > v_lim) {
+    /*
+    printf("(sol_v > v_lim) is true! \n");
+    printf("sol_v, v_lim: %26.16e, %26.16e \n", sol_v, v_lim);
+    */
+    pv.rho = cv.dens / w_lim;
+    if (pv.rho >= rho_strict) {
+      rep.set_speed_limit({sol_v, sol_v, sol_v});
+      set_to_nan(pv, cv);
+      return;
+    }
+    pv.vel *= v_lim / sol_v;
+    pv.w_lor = w_lim;
+    pv.eps = std::min(std::max(eos_th.rgeps.min, pv.eps), eos_th.rgeps.max);
+    pv.press = eos_th.press_from_valid_rho_eps_ye(pv.rho, pv.eps, pv.Ye);
+
+    rep.adjust_cons = true;
+  }
+
+  // Recompute cons if prims have been adjusted
+  if (rep.adjust_cons) {
+    cv.from_prim(pv, glo);
+  }
+}
+
+CCTK_HOST CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE inline void
+c2p_2DNoble::set_to_nan(prim_vars &pv, cons_vars &cv) const {
+  pv.set_to_nan();
+  cv.set_to_nan();
 }
 
 /* Destructor */

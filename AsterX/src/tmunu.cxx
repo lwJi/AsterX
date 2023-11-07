@@ -4,11 +4,11 @@
 #include <cctk_Arguments.h>
 #include <cctk_Parameters.h>
 
+#include "utils.hxx"
 #include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
-#include "utils.hxx"
 
 namespace AsterX {
 using namespace std;
@@ -76,7 +76,8 @@ extern "C" void AsterX_Tmunu(CCTK_ARGUMENTS) {
             -alp(p.I) + calc_contraction(beta_low, vup_avg);
         const vec<CCTK_REAL, 3> ui_low = vlow_avg;
 
-        /* Computing upper components of 4-velocity (without the Lorentz factor) */
+        /* Computing upper components of 4-velocity (without the Lorentz factor)
+         */
         // utup = 1/alp(p.I); //not used
         const vec<CCTK_REAL, 3> ui_up = vup_avg - beta_up / alp(p.I);
 

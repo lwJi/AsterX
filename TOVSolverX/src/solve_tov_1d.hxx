@@ -2,7 +2,7 @@
  * author  Frank Loeffler, converted from fortran thorn by Ian Hawk
  *                         modified to be compatible with CarpetX by Johnny
  *                         original thorn from
- * Cactus/arrangements/EinsteinInitialData/TOVSolver date    2022/07/24 desc
+ * Cactus/arrangements/EinsteinInitialData/TOVSolverX date    2022/07/24 desc
  * Helper functions for solving 1D TOV equations.
  */
 
@@ -48,10 +48,10 @@
                  a[CCTK_GFINDEX3D(cctkGH, i, j, k - 1)])) /                    \
    CCTK_DELTA_SPACE(2))
 
-namespace TOVSolver {
+namespace TOVSolverX {
 
 /*@@
-   @routine    TOV_Source_RHS
+   @routine    TOVX_Source_RHS
    @date       Thu Oct 24 14:30:00 2002
    @author     Frank Loeffler - converted fortran routine by Ian Hawke
    @desc
@@ -64,7 +64,7 @@ namespace TOVSolver {
    @history
    @endhistory
 @@*/
-CCTK_HOST void TOV_C_Source_RHS(CCTK_REAL r, CCTK_REAL K, CCTK_REAL Gamma,
+CCTK_HOST void TOVX_C_Source_RHS(CCTK_REAL r, CCTK_REAL K, CCTK_REAL Gamma,
                                 CCTK_REAL old_data[NUMVARS],
                                 CCTK_REAL source_data[NUMVARS]) {
   CCTK_REAL LOCAL_TINY, PI;
@@ -110,7 +110,7 @@ CCTK_HOST void TOV_C_Source_RHS(CCTK_REAL r, CCTK_REAL K, CCTK_REAL Gamma,
  * here used to look for the last index in an ordered array with its
  * value < goal
  */
-CCTK_HOST CCTK_INT TOV_C_find_index(CCTK_INT array_size, CCTK_REAL *array,
+CCTK_HOST CCTK_INT TOVX_C_find_index(CCTK_INT array_size, CCTK_REAL *array,
                                     CCTK_REAL goal, CCTK_INT lower_index,
                                     CCTK_INT upper_index) {
   CCTK_INT middle_index;
@@ -121,15 +121,15 @@ CCTK_HOST CCTK_INT TOV_C_find_index(CCTK_INT array_size, CCTK_REAL *array,
   middle_index = (lower_index + upper_index) / 2;
 
   if (array[middle_index] < goal)
-    return TOV_C_find_index(array_size, array, goal, middle_index, upper_index);
+    return TOVX_C_find_index(array_size, array, goal, middle_index, upper_index);
   else
-    return TOV_C_find_index(array_size, array, goal, lower_index, middle_index);
+    return TOVX_C_find_index(array_size, array, goal, lower_index, middle_index);
 }
 
 /* utility rountine
  * interpolates from (thorn-internal) 1D-data to Cactus 3D-grid */
 /* input is all but *press_point *phi_point and *r_point */
-CCTK_HOST void TOV_C_interp_tov_isotropic(
+CCTK_HOST void TOVX_C_interp_tov_isotropic(
     CCTK_INT star, CCTK_INT TOV_Num_Radial, CCTK_INT TOV_Fast_Interpolation,
     CCTK_REAL *TOV_press_1d_local, CCTK_REAL *TOV_phi_1d_local,
     CCTK_REAL *TOV_rbar_1d_local, CCTK_REAL *TOV_r_1d_local, CCTK_REAL *r,
@@ -154,7 +154,7 @@ CCTK_HOST void TOV_C_interp_tov_isotropic(
   }
 
   if (TOV_Fast_Interpolation)
-    left_index = TOV_C_find_index(TOV_Num_Radial - 1, TOV_rbar_1d_local, *r, 0,
+    left_index = TOVX_C_find_index(TOV_Num_Radial - 1, TOV_rbar_1d_local, *r, 0,
                                   TOV_Num_Radial - 1);
   else {
     left_index = 0;
@@ -176,4 +176,4 @@ CCTK_HOST void TOV_C_interp_tov_isotropic(
     *press_point = 0.0;
 }
 
-} // namespace TOVSolver
+} // namespace TOVSolverX

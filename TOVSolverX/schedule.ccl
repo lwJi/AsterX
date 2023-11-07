@@ -1,15 +1,15 @@
-# Schedule definitions for thorn TOVSolver
+# Schedule definitions for thorn TOVSolverX
 
 # Initial conditions for TOV neutron stars
 #
 
-schedule TOV_C_AllocateMemory AT WRAGH
+schedule TOVX_C_AllocateMemory AT WRAGH
 {
   LANG: C
   OPTIONS: GLOBAL
 } "Allocate memory for 1D TOV variables"
 
-schedule TOV_C_Integrate_RHS AT WRAGH AFTER TOV_C_AllocateMemory
+schedule TOVX_C_Integrate_RHS AT WRAGH AFTER TOVX_C_AllocateMemory
 {
   LANG: C
   OPTIONS: GLOBAL
@@ -17,20 +17,20 @@ schedule TOV_C_Integrate_RHS AT WRAGH AFTER TOV_C_AllocateMemory
 
 if (!CCTK_Equals(TOV_save_to_datafile,""))
 {
-  schedule TOV_write_1D_datafile AT WRAGH AFTER TOV_C_Integrate_RHS
+  schedule TOVX_write_1D_datafile AT WRAGH AFTER TOVX_C_Integrate_RHS
   {
     LANG: C
     OPTIONS: GLOBAL
   } "Save data to file and exit"
 }
 
-schedule TOV_C_FreeMemory AT TERMINATE
+schedule TOVX_C_FreeMemory AT TERMINATE
 {
     LANG: C
     OPTIONS: GLOBAL
-} "Free memory from TOVSolver_C at the end of the simulation"
+} "Free memory from TOVSolverX_C at the end of the simulation"
 
-#schedule TOVSolver_Sync AT postregrid
+#schedule TOVSolverX_Sync AT postregrid
 #{
 #  LANG: C
 #  OPTIONS: GLOBAL
@@ -42,7 +42,7 @@ schedule TOV_C_FreeMemory AT TERMINATE
 #} "Synchronize"
 
 if (TOV_Cowling) {
-  schedule TOV_C_Exact_ADM IN CCTK_POSTREGRID BEFORE ODESolvers_PostStep
+  schedule TOVX_C_Exact_ADM IN CCTK_POSTREGRID BEFORE ODESolvers_PostStep
   {
     LANG: C
     WRITES: ADMBaseX::metric(interior)
@@ -58,7 +58,7 @@ if (TOV_Cowling) {
   } "Set values for ADM variables of TOV"
 }
 
-schedule TOV_C_Exact IN HydroBaseX_InitialData
+schedule TOVX_C_Exact IN HydroBaseX_InitialData
 {
   LANG: C
   WRITES: HydroBaseX::rho(everywhere)

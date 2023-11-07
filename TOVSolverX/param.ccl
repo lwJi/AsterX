@@ -1,4 +1,4 @@
-# Parameter definitions for thorn TOVSolver
+# Parameter definitions for thorn TOVSolverX
 SHARES: HydroBaseX
 
 EXTENDS KEYWORD initial_hydro "Initial setup" STEERABLE=never
@@ -112,7 +112,7 @@ BOOLEAN TOV_Use_Old_Matter_Initial_Data "Use also old matter initial data? Defau
 {
 } "no"
 
-BOOLEAN TOV_Cowling "Schedule TOVSolver for cowling case."
+BOOLEAN TOV_Cowling "Schedule TOVSolverX for cowling case."
 {
 } "no"
 

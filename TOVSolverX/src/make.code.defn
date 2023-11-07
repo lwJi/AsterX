@@ -1,4 +1,4 @@
-# Main make.code.defn file for thorn TOVSolver
+# Main make.code.defn file for thorn TOVSolverX
 
 # Source files in this directory
 SRCS =	tov.cxx

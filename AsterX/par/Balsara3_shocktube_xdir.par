@@ -64,19 +64,26 @@ AsterSeeds::test_type = "1DTest"
 AsterSeeds::test_case = "Balsara3"
 AsterSeeds::shock_dir = "x"
 
-ReconX::reconstruction_method = "minmod"
-AsterX::flux_type = "HLLE"
-AsterX::c2p_tol = 1e-8
-AsterX::max_iter = 100
 AsterX::debug_mode = "yes"
+AsterX::flux_type = "HLLE"
 
+ReconX::reconstruction_method = "minmod"
+
+Con2PrimFactory::c2p_prime = "Noble"
+Con2PrimFactory::c2p_second = "Palenzuela"
+Con2PrimFactory::c2p_tol = 1e-8
+Con2PrimFactory::max_iter = 100
+Con2PrimFactory::rho_abs_min = 1e-8
 Con2PrimFactory::unit_test = "yes"
+Con2PrimFactory::B_lim = 1e8
+Con2PrimFactory::vw_lim = 1e8
+Con2PrimFactory::Ye_lenient = "yes"
 
-EOSX::evol_eos_name = "IdealGas"
+EOSX::evolution_eos = "IdealGas"
 EOSX::gl_gamma = 1.66666666666667
 EOSX::poly_gamma = 1.66666666666667
-EOSX::rho_max = 10000
-EOSX::eps_max = 10000
+EOSX::rho_max = 1e8
+EOSX::eps_max = 1e8
 
 ODESolvers::method = "RK4"
 

@@ -2,12 +2,11 @@
 # Simple test of magnetised TOV neutron star
 # Same neutron star as the gallery example
 # K=100, rho_c = 1.28e-3 => M = 1.4, M_b = 1.506
-# evolve for iterations = 10
+# evolve for t = 48.82 M
 ##############################
 ActiveThorns = "
     ADMBaseX
     CarpetX
-    ErrorEstimator
     HydroBaseX
     IOUtil
     ODESolvers
@@ -18,21 +17,24 @@ ActiveThorns = "
     Z4c
 "
 
-$nlevels	= 4
-$ncells 	= 256
+$nlevels	= 1
+$ncells 	=  257
 
 CarpetX::verbose = no
-
 Cactus::presync_mode = "mixed-error"
 CarpetX::poison_undefined_values = no
 
-CarpetX::xmin = -20
-CarpetX::ymin = -20
-CarpetX::zmin = -20
+# Grid spacing is 0.15625 
+# To have a symmetric grid along 0, we have odd number of points (257) 
+# along each direction going from -20.078125 to +20.078125
 
-CarpetX::xmax = 20
-CarpetX::ymax = 20
-CarpetX::zmax = 20
+CarpetX::xmin = -20.078125
+CarpetX::ymin = -20.078125
+CarpetX::zmin = -20.078125
+
+CarpetX::xmax = 20.078125
+CarpetX::ymax = 20.078125
+CarpetX::zmax = 20.078125
 
 CarpetX::ncells_x = $ncells
 CarpetX::ncells_y = $ncells
@@ -46,19 +48,16 @@ CarpetX::boundary_upper_y =  "neumann"
 CarpetX::boundary_upper_z =  "neumann"
 
 CarpetX::max_num_levels = $nlevels
-CarpetX::regrid_every = 16
-CarpetX::blocking_factor_x = 8
-CarpetX::blocking_factor_y = 8
-CarpetX::blocking_factor_z = 8
+CarpetX::regrid_every = 100000
+CarpetX::blocking_factor_x = 1
+CarpetX::blocking_factor_y = 1
+CarpetX::blocking_factor_z = 1
 
 
 # the regrid_error_threshold should be in the same units of the 
 # parameter in comparison, see AsterX/src/estimate_error.cxx 
 # for which parameter to use
-CarpetX::regrid_error_threshold = 0.1 
-
-ErrorEstimator::region_shape = "cube"
-ErrorEstimator::scale_by_resolution = yes
+CarpetX::regrid_error_threshold = 5.0e-5
 
 CarpetX::prolongation_type = "ddf"
 CarpetX::ghost_size = 3
@@ -77,13 +76,14 @@ Z4c::calc_constraints = yes
 Z4c::chi_floor = 1.0e-6
 Z4c::alphaG_floor = 1.0e-8
 Z4c::epsdiss = 0.32
+#Z4c::boundary_conditions = "radiative"
 
-
-ActiveThorns = "TOVSolver"
-TOVSolver::TOV_Rho_Central[0] = 1.28e-3
-TOVSolver::TOV_Gamma          = 2.0
-TOVSolver::TOV_K              = 100.0
-TOVSolver::TOV_Cowling = no
+ActiveThorns = "TOVSolverX"
+TOVSolverX::TOV_Rho_Central[0] = 1.28e-3
+TOVSolverX::TOV_Gamma          = 2.0
+TOVSolverX::TOV_K              = 100.0
+#TOVSolverX::TOV_save_to_datafile = "save.txt"
+TOVSolverX::TOV_Cowling = no
 
 
 AsterSeeds::test_type = "3DTest"
@@ -98,29 +98,47 @@ AsterSeeds::Avec_kappa = 2.0
 #AsterSeeds::B0 = 1e-7
 #AsterSeeds::r0 = 5.0
 
-AsterX::rho_abs_min = 1e-13
-AsterX::atmo_tol = 1e-3
-ReconX::reconstruction_method = "ppm"
+AsterX::debug_mode = "yes"
 AsterX::flux_type = "HLLE"
-AsterX::max_iter = 100
-AsterX::c2p_tol = 1e-8
 AsterX::vector_potential_gauge = "algebraic"
-AsterX::local_estimate_error = no
 
-Con2PrimFactory::unit_test = "no"
+ReconX::reconstruction_method = "PPM"
+ReconX::ppm_zone_flattening = "yes"
+ReconX::ppm_shock_detection = "no"
 
-EOSX::evol_eos_name = "IdealGas"
-EOSX::gl_gamma = 2
+Con2PrimFactory::c2p_prime = "Noble"
+Con2PrimFactory::c2p_second = "Palenzuela"
+Con2PrimFactory::c2p_tol = 1e-8
+Con2PrimFactory::max_iter = 100
+Con2PrimFactory::rho_abs_min = 1e-11
+Con2PrimFactory::atmo_tol = 1e-3
+Con2PrimFactory::unit_test = "yes"
+Con2PrimFactory::B_lim = 1e8
+Con2PrimFactory::vw_lim = 1e8
+Con2PrimFactory::Ye_lenient = "yes"
+Con2PrimFactory::rho_strict = 6.4e-05
+
+EOSX::evolution_eos = "IdealGas"
+EOSX::gl_gamma = 2.0
 EOSX::poly_gamma = 2.0
 EOSX::poly_k = 100
+EOSX::rho_max = 1e8
+EOSX::eps_max = 1e8
 
-Cactus::terminate = "iteration"
-Cactus::cctk_itlast = 10
+Cactus::terminate = "never"
+#Cactus::cctk_itlast = 10000000
+Cactus::cctk_final_time = 3000
 ODESolvers::method = "RK4"
 
 IO::out_dir = $parfile
-IO::out_every = 10
+IO::out_every = 64
+CarpetX::out_norm_vars = "all"
+CarpetX::out_norm_omit_unstable = yes
 CarpetX::out_silo_vars = "
+#    AsterX::Avec_x
+#    AsterX::Avec_y
+#    AsterX::Avec_z
+#    AsterX::dB
     HydroBaseX::Bvec
     HydroBaseX::rho
     HydroBaseX::vel
@@ -130,6 +148,12 @@ CarpetX::out_silo_vars = "
     ADMBaseX::lapse
     ADMBaseX::shift
     ADMBaseX::metric
+    TmunuBaseX::eTtt
+    TmunuBaseX::eTti
+    TmunuBaseX::eTij
+    Z4c::allC
+    Z4c::HC
+    Z4c::MtC
 "
 CarpetX::out_tsv_vars = "
     AsterX::dB
@@ -141,10 +165,22 @@ CarpetX::out_tsv_vars = "
     ADMBaseX::lapse
     ADMBaseX::shift
     ADMBaseX::metric
+    TmunuBaseX::eTtt
+    TmunuBaseX::eTti
+    TmunuBaseX::eTij
+    Z4c::allC
+    Z4c::HC
+    Z4c::MtC
 "
-TimerReport::out_every = 10
+TimerReport::out_every = 128
 TimerReport::out_filename = "TimerReport"
 TimerReport::output_all_timers_together = yes
 TimerReport::output_all_timers_readable = yes
 TimerReport::n_top_timers = 50
 
+IO::checkpoint_dir = "../checkpoint"
+IO::checkpoint_ID = no
+IO::checkpoint_every = 0
+IO::checkpoint_every_walltime_hours = 48
+IO::checkpoint_on_terminate = yes
+CarpetX::checkpoint_method = "openpmd"

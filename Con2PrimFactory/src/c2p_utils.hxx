@@ -20,6 +20,12 @@ using namespace std;
 using namespace Loop;
 using namespace Arith;
 
+enum class ROOTSTAT {
+  SUCCESS,
+  NOT_CONVERGED,
+  NOT_BRACKETED
+};
+
 // Computes the contraction of smat and vec
 template <typename T, int D>
 CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline vec<T, D>

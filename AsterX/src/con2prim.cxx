@@ -25,12 +25,33 @@ using namespace EOSX;
 using namespace Con2PrimFactory;
 
 enum class eos_t { IdealGas, Hybrid, Tabulated };
+enum class c2p_first_t { Noble, Palenzuela };
+enum class c2p_second_t { Noble, Palenzuela };
 
 template <typename EOSIDType, typename EOSType>
 void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType &eos_cold,
                              EOSType &eos_th) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_Con2Prim;
   DECLARE_CCTK_PARAMETERS;
+
+  c2p_first_t c2p_fir;
+  c2p_second_t c2p_sec;
+
+  if (CCTK_EQUALS(c2p_prime, "Noble")) {
+    c2p_fir = c2p_first_t::Noble;
+  } else if (CCTK_EQUALS(c2p_prime, "Palenzuela")) {
+    c2p_fir = c2p_first_t::Palenzuela;
+  } else {
+    CCTK_ERROR("Unknown value for parameter \"c2p_prime\"");
+  }
+
+  if (CCTK_EQUALS(c2p_second, "Noble")) {
+    c2p_sec = c2p_second_t::Noble;
+  } else if (CCTK_EQUALS(c2p_second, "Palenzuela")) {
+    c2p_sec = c2p_second_t::Palenzuela;
+  } else {
+    CCTK_ERROR("Unknown value for parameter \"c2p_second\"");
+  }
 
   const smat<GF3D2<const CCTK_REAL>, 3> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
 
@@ -41,13 +62,15 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType &eos_cold,
   eps_atm = std::min(std::max(eos_th.rgeps.min, eps_atm), eos_th.rgeps.max);
   const CCTK_REAL p_atm =
       eos_th.press_from_valid_rho_eps_ye(rho_abs_min, eps_atm, Ye_atmo);
-  const atmosphere atmo(rho_abs_min, eps_atm, Ye_atmo, p_atm, rho_atmo_cut);
+  atmosphere atmo(rho_abs_min, eps_atm, Ye_atmo, p_atm, rho_atmo_cut);
 
   // Construct Noble c2p object:
-  c2p_2DNoble c2p_Noble(eos_th, max_iter, c2p_tol);
+  c2p_2DNoble c2p_Noble(eos_th, atmo, max_iter, c2p_tol, rho_strict, vw_lim,
+                        B_lim, Ye_lenient);
 
   // Construct Palenzuela c2p object:
-  c2p_1DPalenzuela c2p_Pal(eos_th, max_iter, c2p_tol);
+  c2p_1DPalenzuela c2p_Pal(eos_th, atmo, max_iter, c2p_tol, rho_strict, vw_lim,
+                           B_lim, Ye_lenient);
 
   // Loop over the interior of the grid
   cctk_grid.loop_int_device<
@@ -90,23 +113,53 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType &eos_cold,
       atmo.set(pv_seeds);
     }
 
-    CCTK_INT c2p_succeeded_Noble = 0; // false for now
-    CCTK_INT c2p_succeeded_Pal = 0;   // false for now
-    c2p_Noble.solve(eos_th, pv, pv_seeds, cv, glo, c2p_succeeded_Noble);
+    // Construct error report object:
+    c2p_report rep_first;
+    c2p_report rep_second;
 
-    if (!c2p_succeeded_Noble) {
-      c2p_Pal.solve(eos_th, pv, pv_seeds, cv, glo, c2p_succeeded_Pal);
+    // Calling the first C2P
+    switch (c2p_fir) {
+    case c2p_first_t::Noble: {
+      c2p_Noble.solve(eos_th, pv, pv_seeds, cv, glo, rep_first);
+      break;
+    }
+    case c2p_first_t::Palenzuela: {
+      c2p_Pal.solve(eos_th, pv, pv_seeds, cv, glo, rep_first);
+      break;
+    }
+    default:
+      assert(0);
     }
 
-    if (!c2p_succeeded_Noble && !c2p_succeeded_Pal) {
+    if (rep_first.failed()) {
+      printf("First C2P failed :( \n");
+      rep_first.debug_message();
+      printf("Calling the back up C2P.. \n");
+      // Calling the second C2P
+      switch (c2p_sec) {
+      case c2p_second_t::Noble: {
+        c2p_Noble.solve(eos_th, pv, pv_seeds, cv, glo, rep_second);
+        break;
+      }
+      case c2p_second_t::Palenzuela: {
+        c2p_Pal.solve(eos_th, pv, pv_seeds, cv, glo, rep_second);
+        break;
+      }
+      default:
+        assert(0);
+      }
+    }
+
+    if (rep_first.failed() && rep_second.failed()) {
+      printf("Second C2P failed too :( :( \n");
+      rep_second.debug_message();
       con2prim_flag(p.I) = 0;
+
       if (debug_mode) {
-        // need to fix pv to computed values like pv.rho instead of rho(p.I)
         printf(
-            "WARNING: "
+            "WARNING: \n"
             "C2P failed. Printing cons and saved prims before set to "
             "atmo: \n"
-            "!c2p_succeeded_Noble, !c2p_succeeded_Pal = %i, %i \n"
             "cctk_iteration = %i \n "
             "x, y, z = %26.16e, %26.16e, %26.16e \n "
             "dens = %26.16e \n tau = %26.16e \n momx = %26.16e \n "
@@ -118,10 +171,10 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType &eos_cold,
             "Bvecx = %26.16e \n Bvecy = %26.16e \n "
             "Bvecz = %26.16e \n "
             "Avec_x = %26.16e \n Avec_y = %26.16e \n Avec_z = %26.16e \n ",
-            !c2p_succeeded_Noble, !c2p_succeeded_Pal, cctk_iteration, p.x, p.y,
-            p.z, dens(p.I), tau(p.I), momx(p.I), momy(p.I), momz(p.I), dBx(p.I),
-            dBy(p.I), dBz(p.I), pv.rho, pv.eps, pv.press, pv.vel(0), pv.vel(1),
-            pv.vel(2), pv.Bvec(0), pv.Bvec(1), pv.Bvec(2),
+            cctk_iteration, p.x, p.y, p.z, dens(p.I), tau(p.I), momx(p.I),
+            momy(p.I), momz(p.I), dBx(p.I), dBy(p.I), dBz(p.I), pv.rho, pv.eps,
+            pv.press, pv.vel(0), pv.vel(1), pv.vel(2), pv.Bvec(0), pv.Bvec(1),
+            pv.Bvec(2),
             // rho(p.I), eps(p.I), press(p.I), velx(p.I), vely(p.I),
             // velz(p.I), Bvecx(p.I), Bvecy(p.I), Bvecz(p.I),
             Avec_x(p.I), Avec_y(p.I), Avec_z(p.I));
@@ -139,46 +192,6 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType &eos_cold,
 
     /* set flag to success */
     con2prim_flag(p.I) = 1;
-/*
-    if (pv.rho <= rho_atmo_cut) {
-      // set to atmo
-      cv.dBvec(0) = dBx(p.I); // undensitized
-      cv.dBvec(1) = dBy(p.I);
-      cv.dBvec(2) = dBz(p.I);
-      pv.Bvec = cv.dBvec;
-      atmo.set(pv, cv, glo);
-
-      if (debug_mode) {
-        printf("WARNING: "
-               "Printing cons and prims after set to atmo when rho below "
-               "threshold: \n"
-               "cctk_iteration = %i \n "
-               "x, y, z = %26.16e, %26.16e, %26.16e \n "
-               "dens = %26.16e \n tau = %26.16e \n momx = %26.16e \n "
-               "momy = %26.16e \n momz = %26.16e \n dBx = %26.16e \n "
-               "dBy = %26.16e \n dBz = %26.16e \n "
-               "rho = %26.16e \n eps = %26.16e \n press= %26.16e \n "
-               "velx = %26.16e \n vely = %26.16e \n velz = %26.16e \n "
-               "Bvecx = %26.16e \n Bvecy = %26.16e \n "
-               "Bvecz = %26.16e \n "
-               "Avec_x = %26.16e \n Avec_y = %26.16e \n Avec_z = %26.16e \n ",
-               cctk_iteration, p.x, p.y, p.z, dens(p.I), tau(p.I), momx(p.I),
-               momy(p.I), momz(p.I), dBx(p.I), dBy(p.I), dBz(p.I),
-	       pv.rho, pv.eps, pv.press, pv.vel(0), pv.vel(1),
-               pv.vel(2), pv.Bvec(0), pv.Bvec(1), pv.Bvec(2),
-               Avec_x(p.I), Avec_y(p.I), Avec_z(p.I)); 
-      }
-    }
-*/
-
-    if(pv.press < p_atm) {
-      // set to atmo
-      cv.dBvec(0) = dBx(p.I);
-      cv.dBvec(1) = dBy(p.I);
-      cv.dBvec(2) = dBz(p.I);
-      pv.Bvec = cv.dBvec / sqrt_detg;
-      atmo.set(pv, cv, glo);
-    }
 
     // dummy vars
     CCTK_REAL Ex, Ey, Ez;

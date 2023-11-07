@@ -1,6 +1,6 @@
-# Interface definition for thorn TOVSolver
+# Interface definition for thorn TOVSolverX
 
-IMPLEMENTS: TOVSolver
+IMPLEMENTS: TOVSolverX
 
 INHERITS: CarpetX ADMBaseX HydroBaseX AsterX
 

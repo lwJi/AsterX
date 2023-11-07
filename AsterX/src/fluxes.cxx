@@ -10,6 +10,7 @@
 #include <cmath>
 
 #include "utils.hxx"
+#include "eigenvalues.hxx"
 #include "fluxes.hxx"
 #include <reconstruct.hxx>
 #include <eos.hxx>

@@ -8,23 +8,23 @@ ActiveThorns = "
     ADIOS2
     ADMBaseX
     CarpetX
-    #Cowling
     HydroBaseX
     IOUtil
     ODESolvers
+    SystemTopology
     TimerReport
     TmunuBaseX
 "
 
-$nlevels	= 5
-$ncells 	=  32
-$max_p		=  50
-$max_m 		=  -50
+$nlevels	= 1
+$ncells 	=  50
+$max_p		=  100
+$max_m 		=  0
 
 CarpetX::verbose = no
 
 Cactus::presync_mode = "mixed-error"
-CarpetX::poison_undefined_values = no
+CarpetX::poison_undefined_values = yes
 
 CarpetX::xmin = $max_m
 CarpetX::ymin = $max_m
@@ -38,31 +38,26 @@ CarpetX::ncells_x = $ncells
 CarpetX::ncells_y = $ncells
 CarpetX::ncells_z = $ncells
 
-#CarpetX::reflection_x  = yes
-#CarpetX::reflection_y  = yes
-#CarpetX::reflection_z  = yes
+CarpetX::boundary_x = "von neumann"
+CarpetX::boundary_y = "von neumann"
+CarpetX::boundary_z = "von neumann"
+CarpetX::boundary_upper_x = "von neumann"
+CarpetX::boundary_upper_y = "von neumann"
+CarpetX::boundary_upper_z = "von neumann"
 
-CarpetX::boundary_x = "neumann"
-CarpetX::boundary_y = "neumann"
-CarpetX::boundary_z = "neumann"
-CarpetX::boundary_upper_x = "neumann"
-CarpetX::boundary_upper_y = "nneumann"
-CarpetX::boundary_upper_z = "neumann"
+CarpetX::max_num_levels = $nlevels
+CarpetX::regrid_every = 100000
 
+# the regrid_error_threshold should be in the same units of the 
+# parameter in comparison, see AsterX/src/estimate_error.cxx 
+# for which parameter to use
 CarpetX::blocking_factor_x = 1
 CarpetX::blocking_factor_y = 1
 CarpetX::blocking_factor_z = 1
-
-CarpetX::max_num_levels = $nlevels
-CarpetX::regrid_every = 1
-CarpetX::regrid_error_threshold = 1.0e-4 #5.0e-5
-AsterX::regrid_method = "first gradient"
-AsterX::regrid_groups = "
-  HydroBaseX::rho
-"
+CarpetX::regrid_error_threshold = 5.0e-5
 
 CarpetX::prolongation_type = "ddf"
-CarpetX::ghost_size = 2 #3
+CarpetX::ghost_size = 2
 CarpetX::dtfac = 0.25
 
 ADMBaseX::initial_data       = "tov"
@@ -73,62 +68,43 @@ ADMBaseX::initial_dtshift    = "zero"
 
 HydroBaseX::initial_hydro = "tov"
 
-ActiveThorns = "TOVSolver"
-TOVSolver::TOV_Rho_Central[0] = 1.28e-3
-TOVSolver::TOV_Gamma          = 2.0
-TOVSolver::TOV_K              = 100.0
-#TOVSolver::TOV_save_to_datafile = "save.txt"
-TOVSolver::TOV_Cowling = yes
+ActiveThorns = "TOVSolverX"
+TOVSolverX::TOV_Rho_Central[0] = 1.28e-3
+TOVSolverX::TOV_Gamma          = 2.0
+TOVSolverX::TOV_K              = 100.0
+#TOVSolverX::TOV_save_to_datafile = "save.txt"
 
 ActiveThorns = "AsterX"
 AsterX::gamma = 2.0
-AsterX::reconstruction_method = "minmod" #"ppm"
+AsterX::reconstruction_method = "minmod"
 AsterX::max_iter = 100
-#AsterX::rho_abs_min = 1e-11
-#AsterX::atmo_tol = 0.001
 
 Cactus::terminate = "iteration"
-Cactus::cctk_itlast = 2500
+Cactus::cctk_itlast = 2 # 1000
 ODESolvers::method = "RK4"
 
 IO::out_dir = $parfile
-IO::out_every = 50
+IO::out_every = 10
 CarpetX::out_silo_vars = "
     HydroBaseX::rho
     HydroBaseX::vel
     HydroBaseX::eps
     HydroBaseX::press
     CarpetX::regrid_error
-    #ADMBaseX::lapse
-    #ADMBaseX::shift
-    #ADMBaseX::metric
-    #ADMBaseX::curv
-    #AsterX::dens
-    #AsterX::mom
-    #AsterX::tau
+    ADMBaseX::lapse
+    ADMBaseX::shift
+    ADMBaseX::metric
 "
 
-CarpetX::out_tsv_vars = "
+CarpetX::out_openpmd_vars = "
     HydroBaseX::rho
     HydroBaseX::vel
     HydroBaseX::eps
     HydroBaseX::press
     CarpetX::regrid_error
-    #ADMBaseX::lapse
-    #ADMBaseX::shift
-    #ADMBaseX::metric
-    #ADMBaseX::curv
 "
 
-#CarpetX::out_openpmd_vars = "
-#    HydroBaseX::rho
-#    HydroBaseX::vel
-#    HydroBaseX::eps
-#    HydroBaseX::press
-#    CarpetX::regrid_error
-#"
-
-TimerReport::out_every = 10
+TimerReport::out_every = 1
 TimerReport::out_filename = "TimerReport"
 TimerReport::output_all_timers_together = yes
 TimerReport::output_all_timers_readable = yes

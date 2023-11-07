@@ -12,19 +12,33 @@ namespace Con2PrimFactory {
 
 /// Class representing an artificial atmosphere.
 struct atmosphere {
-  const CCTK_REAL rho_atmo;
-  const CCTK_REAL eps_atmo;
-  const CCTK_REAL ye_atmo;
-  const CCTK_REAL press_atmo;
-  const CCTK_REAL rho_cut;
+  CCTK_REAL rho_atmo;
+  CCTK_REAL eps_atmo;
+  CCTK_REAL ye_atmo;
+  CCTK_REAL press_atmo;
+  CCTK_REAL rho_cut;
 
-  atmosphere(const atmosphere &) = default;
+  CCTK_DEVICE
+      CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline atmosphere() = default;
 
   CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline atmosphere(
       CCTK_REAL rho_, CCTK_REAL eps_, CCTK_REAL Ye_, CCTK_REAL press_,
       CCTK_REAL rho_cut_)
       : rho_atmo(rho_), eps_atmo(eps_), ye_atmo(Ye_), press_atmo(press_),
         rho_cut(rho_cut_) {}
+
+  CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline atmosphere &
+  operator=(const atmosphere &other) {
+    if (this == &other)
+      return *this; // Handle self-assignment
+    // Copy data members from 'other' to 'this'
+    rho_atmo = other.rho_atmo;
+    eps_atmo = other.eps_atmo;
+    ye_atmo = other.ye_atmo;
+    press_atmo = other.press_atmo;
+    rho_cut = other.rho_cut;
+    return *this;
+  }
 
   CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline void
   set(prim_vars &pv) const {

@@ -122,6 +122,42 @@ calc_avg_c2v(const GF3D2<const T> &gf, const PointDesc &p) {
   return gf_avg / 8.0;
 }
 
+template <typename T>
+CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline T
+calc_avg_c2v_4th(const GF3D2<const T> &gf, const PointDesc &p) {
+  T gf_avg = 0.0;
+  const vect<T, 4> wt = {-1.0 / 16.0, 9.0 / 16.0, 9.0 / 16.0, -1.0 / 16.0};
+  for (int i = 0; i < dim; i++) {
+    const int j = (i == 0) ? 1 : ((i == 1) ? 2 : 0);
+    const int k = (i == 0) ? 2 : ((i == 1) ? 0 : 1);
+    // interp in i-dir to get plane x_i = 0
+    vect<vect<T, 4>, 4> gf_i = {{0.0, 0.0, 0.0, 0.0},
+                                {0.0, 0.0, 0.0, 0.0},
+                                {0.0, 0.0, 0.0, 0.0},
+                                {0.0, 0.0, 0.0, 0.0}};
+    for (int dk = 0; dk < 4; ++dk) {
+      for (int dj = 0; dj < 4; ++dj) {
+        for (int di = 0; di < 4; ++di) {
+          gf_i[dk][dj] += wt[di] * gf(p.I + p.DI[i] * (di - 2) +
+                                      p.DI[j] * (dj - 2) + p.DI[k] * (dk - 2));
+        }
+      }
+    }
+    // interp in j-dir to get line x_i = x_j = 0
+    vect<T, 4> gf_j = {0.0, 0.0, 0.0, 0.0};
+    for (int dk = 0; dk < 4; ++dk) {
+      for (int dj = 0; dj < 4; ++dj) {
+        gf_j[dk] += wt[dj] * gf_i[dk][dj];
+      }
+    }
+    // interp in k-dir to get point x_i = x_j = x_k = 0
+    for (int dk = 0; dk < 4; ++dk) {
+      gf_avg += wt[dk] * gf_j[dk];
+    }
+  }
+  return gf_avg / 3.0;
+}
+
 } // namespace AsterX
 
 #endif // ASTERX_INTERP_HXX

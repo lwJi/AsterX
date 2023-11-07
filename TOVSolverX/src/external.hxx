@@ -1,7 +1,7 @@
 
-extern "C" void TOV_write_1D_datafile(CCTK_ARGUMENTS)
+extern "C" void TOVX_write_1D_datafile(CCTK_ARGUMENTS)
 {
-  DECLARE_CCTK_ARGUMENTS_TOV_write_1D_datafile
+  DECLARE_CCTK_ARGUMENTS_TOVX_write_1D_datafile
   DECLARE_CCTK_PARAMETERS
   int i;
 
@@ -10,7 +10,7 @@ extern "C" void TOV_write_1D_datafile(CCTK_ARGUMENTS)
                  "supported");
   FILE *file;
   file = fopen(TOV_save_to_datafile, "w");
-  fprintf(file, "TOVSolver data file\n");
+  fprintf(file, "TOVSolverX data file\n");
   fprintf(file, "version 1.0\n");
   fprintf(file, "TOV_Num_Radial %d\n", (int)TOV_Num_Radial);
   fprintf(file, "\n");
