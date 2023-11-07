@@ -123,6 +123,7 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
         }
 
         case vector_potential_gauge_t::generalized_lorentz: {
+          const CCTK_REAL alp_avg = calc_avg_c2v(alp, p);
           const vec<CCTK_REAL, 3> betas{calc_avg_c2v(betax, p),
                                         calc_avg_c2v(betay, p),
                                         calc_avg_c2v(betaz, p)};
@@ -133,7 +134,7 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
                   (betas(i) < 0 ? calc_fd2_v2v_oneside(gf_Fbeta(i), p, i, -1)
                                 : calc_fd2_v2v_oneside(gf_Fbeta(i), p, i, 1));
           }
-          Psi_rhs(p.I) = -dF - lorenz_damp_fac * alp(p.I) * Psi(p.I);
+          Psi_rhs(p.I) = -dF - lorenz_damp_fac * alp_avg * Psi(p.I);
           break;
         }
 
