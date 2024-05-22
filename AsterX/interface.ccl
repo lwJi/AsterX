@@ -98,3 +98,48 @@ CCTK_REAL saved_prims TYPE=gf CENTERING={ccc}
   saved_velx saved_vely saved_velz
   saved_eps
 } "Saved primitive variables as initial guesses for con2prim"
+
+
+
+
+# for subcycling
+
+CCTK_REAL densold TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved rest mass density RHS"
+CCTK_REAL momold TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' { momxold momyold momzold } "Conserved momentum density RHS"
+CCTK_REAL tauold TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved internal energy density RHS"
+CCTK_REAL Avec_x_old TYPE=gf CENTERING={cvv} TAGS='checkpoint="no"' "x-component of vector potential RHS"
+CCTK_REAL Avec_y_old TYPE=gf CENTERING={vcv} TAGS='checkpoint="no"' "y-component of vector potential RHS"
+CCTK_REAL Avec_z_old TYPE=gf CENTERING={vvc} TAGS='checkpoint="no"' "z-component of vector potential RHS"
+CCTK_REAL Psi_old TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "t-component of vector potential RHS"
+
+CCTK_REAL densk1 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved rest mass density RHS"
+CCTK_REAL momk1 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' { momxk1 momyk1 momzk1 } "Conserved momentum density RHS"
+CCTK_REAL tauk1 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved internal energy density RHS"
+CCTK_REAL Avec_x_k1 TYPE=gf CENTERING={cvv} TAGS='checkpoint="no"' "x-component of vector potential RHS"
+CCTK_REAL Avec_y_k1 TYPE=gf CENTERING={vcv} TAGS='checkpoint="no"' "y-component of vector potential RHS"
+CCTK_REAL Avec_z_k1 TYPE=gf CENTERING={vvc} TAGS='checkpoint="no"' "z-component of vector potential RHS"
+CCTK_REAL Psi_k1 TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "t-component of vector potential RHS"
+
+CCTK_REAL densk2 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved rest mass density RHS"
+CCTK_REAL momk2 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' { momxk2 momyk2 momzk2 } "Conserved momentum density RHS"
+CCTK_REAL tauk2 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved internal energy density RHS"
+CCTK_REAL Avec_x_k2 TYPE=gf CENTERING={cvv} TAGS='checkpoint="no"' "x-component of vector potential RHS"
+CCTK_REAL Avec_y_k2 TYPE=gf CENTERING={vcv} TAGS='checkpoint="no"' "y-component of vector potential RHS"
+CCTK_REAL Avec_z_k2 TYPE=gf CENTERING={vvc} TAGS='checkpoint="no"' "z-component of vector potential RHS"
+CCTK_REAL Psi_k2 TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "t-component of vector potential RHS"
+
+CCTK_REAL densk3 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved rest mass density RHS"
+CCTK_REAL momk3 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' { momxk3 momyk3 momzk3 } "Conserved momentum density RHS"
+CCTK_REAL tauk3 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved internal energy density RHS"
+CCTK_REAL Avec_x_k3 TYPE=gf CENTERING={cvv} TAGS='checkpoint="no"' "x-component of vector potential RHS"
+CCTK_REAL Avec_y_k3 TYPE=gf CENTERING={vcv} TAGS='checkpoint="no"' "y-component of vector potential RHS"
+CCTK_REAL Avec_z_k3 TYPE=gf CENTERING={vvc} TAGS='checkpoint="no"' "z-component of vector potential RHS"
+CCTK_REAL Psi_k3 TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "t-component of vector potential RHS"
+
+CCTK_REAL densk4 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved rest mass density RHS"
+CCTK_REAL momk4 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' { momxk4 momyk4 momzk4 } "Conserved momentum density RHS"
+CCTK_REAL tauk4 TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved internal energy density RHS"
+CCTK_REAL Avec_x_k4 TYPE=gf CENTERING={cvv} TAGS='checkpoint="no"' "x-component of vector potential RHS"
+CCTK_REAL Avec_y_k4 TYPE=gf CENTERING={vcv} TAGS='checkpoint="no"' "y-component of vector potential RHS"
+CCTK_REAL Avec_z_k4 TYPE=gf CENTERING={vvc} TAGS='checkpoint="no"' "z-component of vector potential RHS"
+CCTK_REAL Psi_k4 TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "t-component of vector potential RHS"

@@ -116,3 +116,6 @@ USES CCTK_BOOLEAN ppm_shock_detection
 USES CCTK_BOOLEAN ppm_zone_flattening
 USES CCTK_REAL weno_eps
 USES CCTK_REAL mp5_alpha
+
+SHARES: CarpetX
+USES BOOLEAN use_subcycling_wip
