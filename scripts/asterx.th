@@ -695,7 +695,8 @@ Numerical/AEILocalInterp
 # CarpetX thorns
 !TARGET   = $ARR
 !TYPE     = git
-!URL      = https://github.com/EinsteinToolkit/CarpetX.git
+!URL      = https://github.com/lwJi/CarpetX.git
+!REPO_BRANCH = feature/subcycle
 !REPO_PATH= $2
 !CHECKOUT =
 CarpetX/ADMBaseX
@@ -711,6 +712,7 @@ CarpetX/Loop
 CarpetX/ODESolvers
 CarpetX/PDESolvers
 CarpetX/PoissonX
+CarpetX/Subcycling
 CarpetX/TestArrayGroup
 CarpetX/TestInterpolate
 CarpetX/TestNorms
@@ -725,6 +727,7 @@ CarpetX/WaveToyX
 !TARGET   = $ARR
 !TYPE     = git
 !URL      = https://github.com/EinsteinToolkit/SpacetimeX.git
+!REPO_BRANCH = feature/subcycle
 !REPO_PATH= $2
 !CHECKOUT = SpacetimeX/AHFinder SpacetimeX/BaikalX SpacetimeX/BrillLindquist
 #DISABLED SpacetimeX/AHFinder
