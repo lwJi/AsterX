@@ -10,8 +10,4 @@ extern "C" void AsterX_Sync(CCTK_ARGUMENTS) {
   // do nothing
 }
 
-extern "C" void AsterX_SyncKsOld(CCTK_ARGUMENTS) {
-  // do nothing
-}
-
 } // namespace AsterX

@@ -13,16 +13,6 @@ if(use_subcycling_wip) {
   STORAGE: densk2 momk2 tauk2 Avec_x_k2 Avec_y_k2 Avec_z_k2 Psi_k2
   STORAGE: densk3 momk3 tauk3 Avec_x_k3 Avec_y_k3 Avec_z_k3 Psi_k3
   STORAGE: densk4 momk4 tauk4 Avec_x_k4 Avec_y_k4 Avec_z_k4 Psi_k4
-
-  SCHEDULE AsterX_SyncKsOld IN ODESolvers_SyncKsOld
-  {
-    LANG: C
-    SYNC: densold momold tauold Avec_x_old Avec_y_old Avec_z_old Psi_old
-    SYNC: densk1 momk1 tauk1 Avec_x_k1 Avec_y_k1 Avec_z_k1 Psi_k1
-    SYNC: densk2 momk2 tauk2 Avec_x_k2 Avec_y_k2 Avec_z_k2 Psi_k2
-    SYNC: densk3 momk3 tauk3 Avec_x_k3 Avec_y_k3 Avec_z_k3 Psi_k3
-    SYNC: densk4 momk4 tauk4 Avec_x_k4 Avec_y_k4 Avec_z_k4 Psi_k4
-  } "Sync old and ks"
 }
 
 
