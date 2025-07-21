@@ -213,7 +213,28 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
   }};
   constexpr auto dir_arr = dir_arr_table[dir];
 
-  grid.loop_int_device<
+  // initialize to zero
+  grid.loop_all_device<face_centred[0], face_centred[1], face_centred[2]>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+        fluxdenss(dir)(p.I) = 0;
+        fluxDEnts(dir)(p.I) = 0;
+        fluxmomxs(dir)(p.I) = 0;
+        fluxmomys(dir)(p.I) = 0;
+        fluxmomzs(dir)(p.I) = 0;
+        fluxtaus(dir)(p.I) = 0;
+        fluxDYes(dir)(p.I) = 0;
+        fluxBxs(dir)(p.I) = 0;
+        fluxBys(dir)(p.I) = 0;
+        fluxBzs(dir)(p.I) = 0;
+
+        amax(dir)(p.I) = 0;
+        amin(dir)(p.I) = 0;
+        vtildes_one(dir)(p.I) = 0;
+        vtildes_two(dir)(p.I) = 0;
+      });
+
+  grid.loop_mix_device<
       face_centred[0], face_centred[1],
       face_centred
           [2]>(grid.nghostzones, [=] CCTK_DEVICE(
