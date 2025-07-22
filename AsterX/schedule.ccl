@@ -224,6 +224,12 @@ SCHEDULE AsterX_ApplyOuterBCOnFluxes IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFO
   OPTIONS: global
 } "Apply CarpetX boundary conditions on flux variables"
 
+SCHEDULE AsterX_RestrictFluxes IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFORE AsterX_RHS
+{
+  LANG: C
+  OPTIONS: global
+} "Restrict flux variables"
+
 if (CCTK_EQUALS(vector_potential_gauge, "generalized Lorentz")) {
   SCHEDULE AsterX_CalcAuxTermsForAvecPsiRHS IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFORE AsterX_SourceTerms
   {

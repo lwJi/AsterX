@@ -6,10 +6,70 @@
 #include "../../../CarpetX/CarpetX/src/task_manager.hxx"
 #include "../../../CarpetX/CarpetX/src/fillpatch.hxx"
 
+#include <AMReX_MultiFabUtil.H>
+
 namespace AsterX {
 using namespace CarpetX;
 
 ////////////////////////////////////////////////////////////////////////////////
+
+void Restrict(const cGH *cctkGH, int level, const vector<int> &groups) {
+  DECLARE_CCTK_PARAMETERS;
+
+  for (const auto &patchdata : ghext->patchdata) {
+    const int patch = patchdata.patch;
+    if (level + 1 < int(patchdata.leveldata.size())) {
+      auto &leveldata = patchdata.leveldata.at(level);
+      const auto &fineleveldata = patchdata.leveldata.at(level + 1);
+      const active_levels_t active_levels(level, level + 1, patch, patch + 1);
+      const active_levels_t active_fine_levels(level + 1, level + 2, patch,
+                                               patch + 1);
+
+      for (const int gi : groups) {
+        cGroup group;
+        int ierr = CCTK_GroupData(gi, &group);
+        assert(!ierr);
+
+        assert(group.grouptype == CCTK_GF);
+
+        auto &groupdata = *leveldata.groupdata.at(gi);
+        const auto &finegroupdata = *fineleveldata.groupdata.at(gi);
+        const amrex::IntVect reffact{2, 2, 2};
+
+        int ntls = groupdata.mfab.size();
+        int restrict_tl = ntls > 1 ? ntls - 1 : ntls;
+        for (int tl = 0; tl < restrict_tl; ++tl) {
+
+          // rank: 0: vertex, 1: edge, 2: face, 3: volume
+          int rank = 0;
+          for (int d = 0; d < dim; ++d)
+            rank += groupdata.indextype.at(d);
+          switch (rank) {
+          case 0:
+            average_down_nodal(*finegroupdata.mfab.at(tl),
+                               *groupdata.mfab.at(tl), reffact);
+            break;
+          case 1:
+            average_down_edges(*finegroupdata.mfab.at(tl),
+                               *groupdata.mfab.at(tl), reffact);
+            break;
+          case 2:
+            average_down_faces(*finegroupdata.mfab.at(tl),
+                               *groupdata.mfab.at(tl), reffact);
+            break;
+          case 3:
+            average_down(*finegroupdata.mfab.at(tl), *groupdata.mfab.at(tl), 0,
+                         groupdata.numvars, reffact);
+            break;
+          default:
+            assert(0);
+          }
+
+        } // for tl
+      } // for gi
+    } // if level exists
+  } // for patchdata
+}
 
 extern "C" void AsterX_Sync(CCTK_ARGUMENTS) {
   // do nothing
@@ -88,6 +148,30 @@ extern "C" void AsterX_ApplyOuterBCOnFluxes(CCTK_ARGUMENTS) {
   groups.push_back(CCTK_GroupIndex("AsterX::a_zface"));
 
   ApplyOuterBC(CCTK_PASS_CTOC, groups);
+}
+
+extern "C" void AsterX_RestrictFluxes(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_PARAMETERS;
+
+  std::vector<int> groups;
+
+  groups.push_back(CCTK_GroupIndex("AsterX::flux_x"));
+  groups.push_back(CCTK_GroupIndex("AsterX::flux_y"));
+  groups.push_back(CCTK_GroupIndex("AsterX::flux_z"));
+
+  groups.push_back(CCTK_GroupIndex("AsterX::vtilde_xface"));
+  groups.push_back(CCTK_GroupIndex("AsterX::vtilde_yface"));
+  groups.push_back(CCTK_GroupIndex("AsterX::vtilde_zface"));
+  groups.push_back(CCTK_GroupIndex("AsterX::a_xface"));
+  groups.push_back(CCTK_GroupIndex("AsterX::a_yface"));
+  groups.push_back(CCTK_GroupIndex("AsterX::a_zface"));
+
+  active_levels->loop_fine_to_coarse([&](const auto &leveldata) {
+    if (leveldata.level < ghext->num_levels() - 1)
+      Restrict(cctkGH, leveldata.level, groups);
+  });
+
+  assert(ghext->num_patches() == 1);
 }
 
 } // namespace AsterX
