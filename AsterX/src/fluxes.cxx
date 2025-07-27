@@ -166,41 +166,39 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
 
   const auto reconstruct_pt =
       [=] CCTK_DEVICE(const GF3D2<const CCTK_REAL> &var, const PointDesc &p,
-                      const bool &gf_is_rho,
-                      const bool &gf_is_press) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+                      const bool &gf_is_rho, const bool &gf_is_press) {
         return reconstruct(var, p, reconstruction, dir, gf_is_rho, gf_is_press,
                            press, gf_vels(dir), reconstruct_params);
       };
   const auto reconstruct_loworder =
       [=] CCTK_DEVICE(const GF3D2<const CCTK_REAL> &var, const PointDesc &p,
-                      const bool &gf_is_rho, const bool &gf_is_press)
-          CCTK_ATTRIBUTE_ALWAYS_INLINE {
-            return reconstruct(var, p, reconstruction_LO, dir, gf_is_rho,
-                               gf_is_press, press, gf_vels(dir),
-                               reconstruct_params);
-          };
-  const auto calcflux =
-      [=] CCTK_DEVICE(vec<vec<CCTK_REAL, 4>, 2> lam, vec<CCTK_REAL, 2> var,
-                      vec<CCTK_REAL, 2> flux) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        CCTK_REAL flx;
-        switch (fluxtype) {
-
-        case flux_t::LxF: {
-          flx = laxf(lam, var, flux);
-          break;
-        }
-
-        case flux_t::HLLE: {
-          flx = hlle(lam, var, flux);
-          break;
-        }
-
-        default:
-          assert(0);
-        }
-
-        return flx;
+                      const bool &gf_is_rho, const bool &gf_is_press) {
+        return reconstruct(var, p, reconstruction_LO, dir, gf_is_rho,
+                           gf_is_press, press, gf_vels(dir),
+                           reconstruct_params);
       };
+  const auto calcflux = [=] CCTK_DEVICE(vec<vec<CCTK_REAL, 4>, 2> lam,
+                                        vec<CCTK_REAL, 2> var,
+                                        vec<CCTK_REAL, 2> flux) {
+    CCTK_REAL flx;
+    switch (fluxtype) {
+
+    case flux_t::LxF: {
+      flx = laxf(lam, var, flux);
+      break;
+    }
+
+    case flux_t::HLLE: {
+      flx = hlle(lam, var, flux);
+      break;
+    }
+
+    default:
+      assert(0);
+    }
+
+    return flx;
+  };
 
   // Face-centred grid functions (in direction `dir`)
   constexpr array<int, dim> face_centred = {!(dir == 0), !(dir == 1),
@@ -214,12 +212,10 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
   }};
   constexpr auto dir_arr = dir_arr_table[dir];
 
-  grid.loop_int_device<
-      face_centred[0], face_centred[1],
-      face_centred
-          [2]>(grid.nghostzones, [=] CCTK_DEVICE(
-                                     const PointDesc
-                                         &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+  grid.loop_int_device<face_centred[0], face_centred[1],
+                       face_centred[2]>(grid.nghostzones, [=] CCTK_DEVICE(
+                                                              const PointDesc
+                                                                  &p) {
     /* Reconstruct primitives from the cells on left (indice 0) and right
      * (indice 1) side of this face rc = reconstructed variables or
      * computed from reconstructed variables */
