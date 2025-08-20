@@ -167,14 +167,14 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
   const auto reconstruct_pt =
       [=] CCTK_DEVICE(const GF3D2<const CCTK_REAL> &var, const PointDesc &p,
                       const bool &gf_is_rho,
-                      const bool &gf_is_press) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+                      const bool &gf_is_press) {
         return reconstruct(var, p, reconstruction, dir, gf_is_rho, gf_is_press,
                            press, gf_vels(dir), reconstruct_params);
       };
   const auto reconstruct_loworder =
       [=] CCTK_DEVICE(const GF3D2<const CCTK_REAL> &var, const PointDesc &p,
                       const bool &gf_is_rho,
-                      const bool &gf_is_press) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+                      const bool &gf_is_press) {
         return reconstruct(var, p, reconstruction_LO, dir, gf_is_rho, gf_is_press,
                            press, gf_vels(dir), reconstruct_params);
       };
@@ -218,7 +218,7 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
       face_centred
           [2]>(grid.nghostzones, [=] CCTK_DEVICE(
                                      const PointDesc
-                                         &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+                                         &p) {
     /* Reconstruct primitives from the cells on left (indice 0) and right
      * (indice 1) side of this face rc = reconstructed variables or
      * computed from reconstructed variables */
