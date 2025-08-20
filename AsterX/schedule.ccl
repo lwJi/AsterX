@@ -218,12 +218,16 @@ SCHEDULE AsterX_Fluxes IN AsterX_RHSGroup
   READS: zvec_x(everywhere) zvec_y(everywhere) zvec_z(everywhere)
   READS: svec_x(everywhere) svec_y(everywhere) svec_z(everywhere)
   READS: Avec_x(everywhere) Avec_y(everywhere) Avec_z(everywhere) Psi(everywhere)
-  WRITES: flux_x(interior) flux_y(interior) flux_z(interior)
-  WRITES: vtilde_xface(interior) vtilde_yface(interior) vtilde_zface(interior)
-  WRITES: a_xface(interior) a_yface(interior) a_zface(interior)
-  SYNC: flux_x flux_y flux_z
-  SYNC: vtilde_xface vtilde_yface vtilde_zface a_xface a_yface a_zface
+  WRITES: flux_x(everywhere) flux_y(everywhere) flux_z(everywhere)
+  WRITES: vtilde_xface(everywhere) vtilde_yface(everywhere) vtilde_zface(everywhere)
+  WRITES: a_xface(everywhere) a_yface(everywhere) a_zface(everywhere)
 } "Calculate the hydro fluxes"
+
+SCHEDULE AsterX_ApplyOuterBCOnFluxes IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFORE AsterX_RHS
+{
+  LANG: C
+  OPTIONS: global
+} "Apply CarpetX boundary conditions on flux variables"
 
 if (CCTK_EQUALS(vector_potential_gauge, "generalized Lorentz")) {
   SCHEDULE AsterX_CalcAuxTermsForAvecPsiRHS IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFORE AsterX_SourceTerms
