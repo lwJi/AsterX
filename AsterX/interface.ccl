@@ -99,6 +99,8 @@ CCTK_REAL dBx_stag TYPE=gf CENTERING={vcc} TAGS='checkpoint="no"' "x-component o
 CCTK_REAL dBy_stag TYPE=gf CENTERING={cvc} TAGS='checkpoint="no"' "y-component of staggered densitized magnetic field"
 CCTK_REAL dBz_stag TYPE=gf CENTERING={ccv} TAGS='checkpoint="no"' "z-component of staggered densitized magnetic field"
 
+CCTK_REAL Bvc TYPE=gf CENTERING={vvv} TAGS='parities={+1 -1 -1   -1 +1 -1   -1 -1 +1} checkpoint="no"' { Bvcx Bvcy Bvcz } "Magnetic field B^i"
+
 CCTK_REAL Psi TYPE=gf CENTERING={vvv} TAGS='rhs="Psi_rhs"' "t-component of vector potential: sqrt(det(gamma_ij))*Phi"
 
 CCTK_REAL Psi_rhs TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "t-component of vector potential RHS"

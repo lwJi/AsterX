@@ -691,6 +691,20 @@ extern "C" void AsterX_Con2Prim(CCTK_ARGUMENTS) {
   }
 }
 
+extern "C" void AsterX_InterpBvc(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_AsterX_InterpBvc;
+  DECLARE_CCTK_PARAMETERS;
+
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+
+        Bvcx(p.I) = calc_avg_c2v<2>(Bvecx, p);
+        Bvcy(p.I) = calc_avg_c2v<2>(Bvecy, p);
+        Bvcz(p.I) = calc_avg_c2v<2>(Bvecz, p);
+      }); // end of loop over grid
+}
+
 extern "C" void AsterX_Con2Prim_Interpolate_Failed(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_Con2Prim_Interpolate_Failed;
   DECLARE_CCTK_PARAMETERS;

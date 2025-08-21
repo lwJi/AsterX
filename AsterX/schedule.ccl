@@ -197,6 +197,13 @@ SCHEDULE AsterX_ApplyOuterBCOnPrim IN AsterX_Con2PrimGroup AFTER AsterX_Con2Prim
   OPTIONS: global
 } "Apply CarpetX boundary conditions on primitive variables"
 
+SCHEDULE AsterX_InterpBvc IN AsterX_Con2PrimGroup AFTER AsterX_ApplyOuterBCOnPrim
+{
+  LANG: C
+  READS: HydroBaseX::Bvec(everywhere)
+  WRITES: Bvc(interior)
+} "Calculate primitive variables from conservative variables"
+
 
 
 
