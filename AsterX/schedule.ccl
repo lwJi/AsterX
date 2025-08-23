@@ -273,6 +273,14 @@ SCHEDULE AsterX_RHS IN AsterX_RHSGroup AFTER AsterX_SourceTerms
   WRITES: Avec_x_rhs(interior) Avec_y_rhs(interior) Avec_z_rhs(interior) Psi_rhs(interior)
 } "Update the RHS of the hydro equations with the flux contributions"
 
+SCHEDULE AsterX_RHS_ApplyDiss IN AsterX_RHSGroup AFTER AsterX_RHS
+{
+  LANG: C
+  READS: Psi(everywhere)
+  READS: Psi_rhs(interior)
+  WRITES: Psi_rhs(interior)
+} "Apply KO dissipation to the RHS of Psi"
+
 
 
 if(interpolate_failed_c2p)

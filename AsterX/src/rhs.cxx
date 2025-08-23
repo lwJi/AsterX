@@ -1,11 +1,13 @@
+#include <array>
 #include <cctk.h>
 #include <cctk_Arguments.h>
 #include <cctk_Parameters.h>
 #include <loop_device.hxx>
-#include <array>
 
-#include "reconstruct.hxx"
+#include <cx_dissinline.hxx>
+
 #include "aster_utils.hxx"
+#include "reconstruct.hxx"
 
 namespace AsterX {
 using namespace Loop;
@@ -249,6 +251,29 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
         default:
           assert(0);
         }
+      });
+}
+
+extern "C" void AsterX_RHS_ApplyDiss(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTS_AsterX_RHS_ApplyDiss;
+  DECLARE_CCTK_PARAMETERS;
+
+  const array<CCTK_REAL, 3> invDxyz{1. / CCTK_DELTA_SPACE(0),
+                                    1. / CCTK_DELTA_SPACE(1),
+                                    1. / CCTK_DELTA_SPACE(2)};
+
+  const GF3D2layout layout2(cctkGH, {0, 0, 0});
+  const Loop::GridDescBaseDevice grid(cctkGH);
+
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+        const int ijk = layout2.linear(p.i, p.j, p.k);
+        const auto rhs_old = Psi_rhs[ijk];
+        const auto rhs_new =
+            rhs_old + epsdiss * CXUtils::calc_diss<2>(layout2, Psi, p.i, p.j,
+                                                      p.k, invDxyz);
+        Psi_rhs[ijk] = rhs_new;
       });
 }
 

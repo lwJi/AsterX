@@ -44,6 +44,11 @@ KEYWORD regrid_method "Regrid method" STEERABLE=always
   "first gradient" :: ""
 } "first gradient"
 
+CCTK_REAL epsdiss "Dissipation coefficient <arXiv:gr-qc/0610128>" STEERABLE=always
+{
+  0.0:* :: ""
+} 0.32
+
 CCTK_REAL epsilon_err "epsilon parameter in second derivative norm criterion (see Mignone+2011 eq. 50 arXiv:1110.0740)" STEERABLE=always
 {
   0:* :: "Larger than zero, default from Mignone+2011"
