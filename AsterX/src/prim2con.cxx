@@ -69,9 +69,9 @@ extern "C" void AsterX_FluxAuxZero_Initial(CCTK_ARGUMENTS) {
   grid.loop_all_device<0, 0, 0>(grid.nghostzones,
                                 [=] CCTK_DEVICE(const PointDesc &p)
                                     CCTK_ATTRIBUTE_ALWAYS_INLINE {
-                                      Fx(p.I) = 0.0;
-                                      Fy(p.I) = 0.0;
-                                      Fz(p.I) = 0.0;
+                                      // Fx(p.I) = 0.0;
+                                      // Fy(p.I) = 0.0;
+                                      // Fz(p.I) = 0.0;
                                       Fbetax(p.I) = 0.0;
                                       Fbetay(p.I) = 0.0;
                                       Fbetaz(p.I) = 0.0;

@@ -79,7 +79,7 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
   const vec<GF3D2<const CCTK_REAL>, dim> gf_fDYe{fxDYe, fyDYe, fzDYe};
   const vec<vec<GF3D2<const CCTK_REAL>, dim>, dim> gf_fBs{
       {fxBx, fyBx, fzBx}, {fxBy, fyBy, fzBy}, {fxBz, fyBz, fzBz}};
-  const vec<GF3D2<const CCTK_REAL>, dim> gf_F{Fx, Fy, Fz};
+  const vec<GF3D2<const CCTK_REAL>, dim> gf_Fstag{Fx_stag, Fy_stag, Fz_stag};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Fbeta{Fbetax, Fbetay, Fbetaz};
   /* grid functions for Upwind CT */
@@ -237,7 +237,7 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
           CCTK_REAL dF = 0.0;
           for (int i = 0; i < dim; i++) {
             /* diFi on vertices (should be v2v but c2c works too) */
-            dF += calc_fd2_c2c(gf_F(i), p, i) -
+            dF += calc_fd2_e2v(gf_Fstag(i), p, i) -
                   (gf_beta(i)(p.I) < 0
                        ? calc_fd2_v2v_oneside(gf_Fbeta(i), p, i, -1)
                        : calc_fd2_v2v_oneside(gf_Fbeta(i), p, i, 1));

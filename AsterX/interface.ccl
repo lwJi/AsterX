@@ -105,12 +105,12 @@ CCTK_REAL Psi_rhs TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "t-component of
 
 CCTK_REAL Aux_in_RHSof_A_Psi TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"'
 {
-  Fx, Fy, Fz, Fbetax, Fbetay, Fbetaz, G
+  Fbetax, Fbetay, Fbetaz, G
 } "Auxiliary vertices variables which appears in the rhs of Avec and Psi"
 
-#CCTK_REAL Ex TYPE=gf CENTERING={cvv} TAGS='checkpoint="no"' "x-component of electric field"
-#CCTK_REAL Ey TYPE=gf CENTERING={vcv} TAGS='checkpoint="no"' "y-component of electric field"
-#CCTK_REAL Ez TYPE=gf CENTERING={vvc} TAGS='checkpoint="no"' "z-component of electric field"
+CCTK_REAL Fx_stag TYPE=gf CENTERING={cvv} TAGS='checkpoint="no"' "x-component of F"
+CCTK_REAL Fy_stag TYPE=gf CENTERING={vcv} TAGS='checkpoint="no"' "y-component of F"
+CCTK_REAL Fz_stag TYPE=gf CENTERING={vvc} TAGS='checkpoint="no"' "z-component of F"
 
 CCTK_REAL con2prim_flag TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Flag indicating failure of con2prim"
 
