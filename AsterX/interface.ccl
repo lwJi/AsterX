@@ -112,6 +112,10 @@ CCTK_REAL Fx_stag TYPE=gf CENTERING={cvv} TAGS='checkpoint="no"' "x-component of
 CCTK_REAL Fy_stag TYPE=gf CENTERING={vcv} TAGS='checkpoint="no"' "y-component of F"
 CCTK_REAL Fz_stag TYPE=gf CENTERING={vvc} TAGS='checkpoint="no"' "z-component of F"
 
+CCTK_REAL betaA_x TYPE=gf CENTERING={cvv} TAGS='checkpoint="no"' "x-component of beta^x A_x"
+CCTK_REAL betaA_y TYPE=gf CENTERING={vcv} TAGS='checkpoint="no"' "y-component of beta^y A_y"
+CCTK_REAL betaA_z TYPE=gf CENTERING={vvc} TAGS='checkpoint="no"' "z-component of beta^z A_z"
+
 CCTK_REAL con2prim_flag TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Flag indicating failure of con2prim"
 
 # saved_prims are computed only once at the beginning of the simulation

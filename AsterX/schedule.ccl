@@ -230,6 +230,14 @@ SCHEDULE AsterX_ApplyOuterBCOnFluxes IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFO
 } "Apply CarpetX boundary conditions on flux variables"
 
 if (CCTK_EQUALS(vector_potential_gauge, "generalized Lorentz")) {
+  SCHEDULE AsterX_CalcBetaA IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFORE AsterX_CalcAuxTermsForAvecPsiRHS
+  {
+    LANG: C
+    READS: ADMBaseX::shift(everywhere)
+    READS: Avec_x(everywhere) Avec_y(everywhere) Avec_z(everywhere)
+    WRITES: betaA_x(everywhere) betaA_y(everywhere) betaA_z(everywhere)
+  } "Calculate the auxiliary terms for the rhs of Avec"
+
   SCHEDULE AsterX_CalcAuxTermsForAvecPsiRHS IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFORE AsterX_SourceTerms
   {
     LANG: C
@@ -237,6 +245,7 @@ if (CCTK_EQUALS(vector_potential_gauge, "generalized Lorentz")) {
     READS: ADMBaseX::lapse(everywhere)
     READS: ADMBaseX::shift(everywhere)
     READS: Avec_x(everywhere) Avec_y(everywhere) Avec_z(everywhere) Psi(everywhere)
+    READS: betaA_x(everywhere) betaA_y(everywhere) betaA_z(everywhere)
     READS: Aux_in_RHSof_A_Psi(everywhere)
     WRITES: Aux_in_RHSof_A_Psi(everywhere)
     WRITES: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)

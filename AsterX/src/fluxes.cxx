@@ -807,6 +807,35 @@ extern "C" void AsterX_Fluxes(CCTK_ARGUMENTS) {
 }
 
 template <int dir>
+void CalcBetaA(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_AsterX_CalcBetaA;
+  DECLARE_CCTK_PARAMETERS;
+
+  constexpr array<int, dim> edge_centred = {(dir == 0), (dir == 1),
+                                            (dir == 2)};
+
+  const vec<GF3D2<CCTK_REAL>, dim> gf_betaA{betaA_x, betaA_y, betaA_z};
+  const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
+  const vec<GF3D2<const CCTK_REAL>, dim> gf_Avecs{Avec_x, Avec_y, Avec_z};
+
+  grid.loop_all_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+        gf_betaA(dir)(p.I) =
+          calc_avg_v2e(gf_beta(dir), p, dir) * gf_Avecs(dir)(p.I);
+      });
+}
+
+extern "C" void AsterX_CalcBetaA(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTS_AsterX_CalcBetaA;
+  DECLARE_CCTK_PARAMETERS;
+
+  CalcBetaA<0>(CCTK_PASS_CTOC);
+  CalcBetaA<1>(CCTK_PASS_CTOC);
+  CalcBetaA<2>(CCTK_PASS_CTOC);
+}
+
+template <int dir>
 void CalcFstag(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_CalcAuxTermsForAvecPsiRHS;
   DECLARE_CCTK_PARAMETERS;
@@ -835,27 +864,21 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_CalcAuxTermsForAvecPsiRHS;
   DECLARE_CCTK_PARAMETERS;
 
-  const vec<GF3D2<const CCTK_REAL>, dim> gf_Avecs{Avec_x, Avec_y, Avec_z};
+  const vec<GF3D2<const CCTK_REAL>, dim> gf_betaA{betaA_x, betaA_y, betaA_z};
 
   grid.loop_allm1_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        /* interpolate A to vertices */
-        const vec<CCTK_REAL, 3> A_vert([&](int i) ARITH_INLINE {
-          return calc_avg_e2v(gf_Avecs(i), p, i);
-        });
+        const CCTK_REAL betaA =
+          sum<3>([&](int i) ARITH_INLINE {
+            return calc_avg_e2v(gf_betaA(i), p, i);
+          });
         const smat<CCTK_REAL, 3> g{gxx(p.I), gxy(p.I), gxz(p.I),
                                    gyy(p.I), gyz(p.I), gzz(p.I)};
-        const vec<CCTK_REAL, 3> betas{betax(p.I), betay(p.I), betaz(p.I)};
         const CCTK_REAL detg = calc_det(g);
         const CCTK_REAL sqrtg = sqrt(detg);
-        const smat<CCTK_REAL, 3> ug = calc_inv(g, detg);
-        const vec<CCTK_REAL, 3> Aup = calc_contraction(ug, A_vert);
 
-        // Fx(p.I) = alp(p.I) * sqrtg * Aup(0);
-        // Fy(p.I) = alp(p.I) * sqrtg * Aup(1);
-        // Fz(p.I) = alp(p.I) * sqrtg * Aup(2);
-        G(p.I) = alp(p.I) * Psi(p.I) / sqrtg - calc_contraction(betas, A_vert);
+        G(p.I) = alp(p.I) * Psi(p.I) / sqrtg - betaA;
       });
 
 
