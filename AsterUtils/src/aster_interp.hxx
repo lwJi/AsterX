@@ -6,9 +6,9 @@
 #include <cctk_Parameters.h>
 
 #include <mat.hxx>
-#include <vec.hxx>
-#include <sum.hxx>
 #include <simd.hxx>
+#include <sum.hxx>
+#include <vec.hxx>
 
 #include <algorithm>
 #include <array>
@@ -45,6 +45,20 @@ calc_avg_e2v(const GF3D2<const T> &gf, const PointDesc &p, const int dir) {
     gf_avg += gf(p.I - p.DI[dir] * di);
   }
   return gf_avg / 2.0;
+}
+
+template <typename T>
+CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline T
+calc_avg_e2v_hermite(const GF3D2<const T> &gf, const PointDesc &p,
+                     const int dir) {
+  const vect<T, 6> wt = {+1 / T(96), -9 / T(96), 56 / T(96),
+                         56 / T(96), -9 / T(96), +1 / T(96)};
+  T gf_avg = 0.0;
+
+  for (int di = 0; di < 6; ++di) {
+    gf_avg += gf(p.I + p.DI[dir] * (di - 3)) * wt[di];
+  }
+  return gf_avg;
 }
 
 // Second-order average of edge-centered grid functions (along dir) to cell
