@@ -842,19 +842,14 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         /* interpolate A to vertices */
         const vec<CCTK_REAL, 3> A_vert([&](int i) ARITH_INLINE {
-          return calc_avg_e2v(gf_Avecs(i), p, i);
+          return calc_avg_e2v_4th(gf_Avecs(i), p, i);
         });
         const smat<CCTK_REAL, 3> g{gxx(p.I), gxy(p.I), gxz(p.I),
                                    gyy(p.I), gyz(p.I), gzz(p.I)};
         const vec<CCTK_REAL, 3> betas{betax(p.I), betay(p.I), betaz(p.I)};
         const CCTK_REAL detg = calc_det(g);
         const CCTK_REAL sqrtg = sqrt(detg);
-        const smat<CCTK_REAL, 3> ug = calc_inv(g, detg);
-        const vec<CCTK_REAL, 3> Aup = calc_contraction(ug, A_vert);
 
-        // Fx(p.I) = alp(p.I) * sqrtg * Aup(0);
-        // Fy(p.I) = alp(p.I) * sqrtg * Aup(1);
-        // Fz(p.I) = alp(p.I) * sqrtg * Aup(2);
         G(p.I) = alp(p.I) * Psi(p.I) / sqrtg - calc_contraction(betas, A_vert);
       });
 
