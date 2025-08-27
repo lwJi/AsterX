@@ -818,6 +818,10 @@ template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
 
   constexpr array<int, dim> edge_centred = {(dir == 0), (dir == 1), (dir == 2)};
 
+  constexpr int dir_i = dir;
+  constexpr int dir_j = (dir_i == 0) ? 1 : ((dir_i == 1) ? 2 : 0);
+  constexpr int dir_k = (dir_i == 0) ? 2 : ((dir_i == 1) ? 0 : 1);
+
   const vec<GF3D2<CCTK_REAL>, dim> gf_F{Fx_stag, Fy_stag, Fz_stag};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Avecs{Avec_x, Avec_y, Avec_z};
   const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
@@ -825,13 +829,22 @@ template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
   grid.loop_all_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        const CCTK_REAL alp_e = calc_avg_v2e(alp, p, dir);
+        const CCTK_REAL alp_e = calc_avg_v2e(alp, p, dir_i);
         const smat<CCTK_REAL, 3> g_e([&](int i, int j) ARITH_INLINE {
-          return calc_avg_v2e(gf_g(i, j), p, dir);
+          return calc_avg_v2e(gf_g(i, j), p, dir_i);
         });
         const CCTK_REAL detg_e = calc_det(g_e);
         const CCTK_REAL sqrtg_e = sqrt(detg_e);
-        gf_F(dir)(p.I) = alp_e * sqrtg_e * gf_Avecs(dir)(p.I);
+        const smat<CCTK_REAL, 3> ug_e = calc_inv(g_e, detg_e);
+
+        vec<CCTK_REAL, 3> A_e;
+        A_e(dir_i) = gf_Avecs(dir_i)(p.I);
+        A_e(dir_j) = calc_avg_e2e<dir_i>(gf_Avecs(dir_j), p, dir_j);
+        A_e(dir_k) = calc_avg_e2e<dir_i>(gf_Avecs(dir_k), p, dir_k);
+
+        const vec<CCTK_REAL, 3> Aup_e = calc_contraction(ug_e, A_e);
+
+        gf_F(dir_i)(p.I) = alp_e * sqrtg_e * Aup_e(dir_i);
       });
 }
 
