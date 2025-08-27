@@ -1,11 +1,11 @@
+#include <array>
 #include <cctk.h>
 #include <cctk_Arguments.h>
 #include <cctk_Parameters.h>
 #include <loop_device.hxx>
-#include <array>
 
-#include "reconstruct.hxx"
 #include "aster_utils.hxx"
+#include "reconstruct.hxx"
 
 namespace AsterX {
 using namespace Loop;
