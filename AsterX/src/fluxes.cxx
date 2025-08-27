@@ -166,17 +166,16 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
 
   const auto reconstruct_pt =
       [=] CCTK_DEVICE(const GF3D2<const CCTK_REAL> &var, const PointDesc &p,
-                      const bool &gf_is_rho,
-                      const bool &gf_is_press) {
+                      const bool &gf_is_rho, const bool &gf_is_press) {
         return reconstruct(var, p, reconstruction, dir, gf_is_rho, gf_is_press,
                            press, gf_vels(dir), reconstruct_params);
       };
   const auto reconstruct_loworder =
       [=] CCTK_DEVICE(const GF3D2<const CCTK_REAL> &var, const PointDesc &p,
-                      const bool &gf_is_rho,
-                      const bool &gf_is_press) {
-        return reconstruct(var, p, reconstruction_LO, dir, gf_is_rho, gf_is_press,
-                           press, gf_vels(dir), reconstruct_params);
+                      const bool &gf_is_rho, const bool &gf_is_press) {
+        return reconstruct(var, p, reconstruction_LO, dir, gf_is_rho,
+                           gf_is_press, press, gf_vels(dir),
+                           reconstruct_params);
       };
   const auto calcflux =
       [=] CCTK_DEVICE(vec<vec<CCTK_REAL, 4>, 2> lam, vec<CCTK_REAL, 2> var,
@@ -234,12 +233,10 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
         vtildes_two(dir)(p.I) = 0;
       });
 
-  grid.loop_mix_device<
-      face_centred[0], face_centred[1],
-      face_centred
-          [2]>(grid.nghostzones, [=] CCTK_DEVICE(
-                                     const PointDesc
-                                         &p) {
+  grid.loop_mix_device<face_centred[0], face_centred[1],
+                       face_centred[2]>(grid.nghostzones, [=] CCTK_DEVICE(
+                                                              const PointDesc
+                                                                  &p) {
     /* Reconstruct primitives from the cells on left (indice 0) and right
      * (indice 1) side of this face rc = reconstructed variables or
      * computed from reconstructed variables */
@@ -281,21 +278,25 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
       temp_rc_dummy = reconstruct_pt(temperature, p, false, false);
 
       // Use lower-order if reconstructed rho, entropy, Ye or T is <= 0
-      if ((rho_rc(0) <= 0.0) || (entropy_rc(0) <= 0.0) || (Ye_rc(0) <= 0.0) || (temp_rc_dummy[0] <= 0.0) ||
-          (rho_rc(1) <= 0.0) || (entropy_rc(1) <= 0.0) || (Ye_rc(1) <= 0.0) || (temp_rc_dummy[1] <= 0.0)) {
+      if ((rho_rc(0) <= 0.0) || (entropy_rc(0) <= 0.0) || (Ye_rc(0) <= 0.0) ||
+          (temp_rc_dummy[0] <= 0.0) || (rho_rc(1) <= 0.0) ||
+          (entropy_rc(1) <= 0.0) || (Ye_rc(1) <= 0.0) ||
+          (temp_rc_dummy[1] <= 0.0)) {
 
-      	useLO = true;
+        useLO = true;
 
         vec<CCTK_REAL, 2> rhoLO_rc{reconstruct_loworder(rho, p, true, true)};
-        vec<CCTK_REAL, 2> entropyLO_rc{reconstruct_loworder(entropy, p, false, false)};
+        vec<CCTK_REAL, 2> entropyLO_rc{
+            reconstruct_loworder(entropy, p, false, false)};
         vec<CCTK_REAL, 2> YeLO_rc{reconstruct_loworder(Ye, p, false, false)};
-        vec<CCTK_REAL, 2> tempLO_rc{reconstruct_loworder(temperature, p, false, false)};
+        vec<CCTK_REAL, 2> tempLO_rc{
+            reconstruct_loworder(temperature, p, false, false)};
 
         rho_rc = rhoLO_rc;
         entropy_rc = entropyLO_rc;
         Ye_rc = YeLO_rc;
         temp_rc_dummy[0] = tempLO_rc(0);
-	temp_rc_dummy[1] = tempLO_rc(1);
+        temp_rc_dummy[1] = tempLO_rc(1);
       }
       // End lower-order
 
@@ -315,21 +316,25 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
       press_rc_dummy = reconstruct_pt(press, p, false, true);
 
       // Use lower-order if reconstructed rho, entropy, Ye or pressure is <= 0
-      if ((rho_rc(0) <= 0.0) || (entropy_rc(0) <= 0.0) || (Ye_rc(0) <= 0.0) || (press_rc_dummy[0] <= 0.0) ||
-          (rho_rc(1) <= 0.0) || (entropy_rc(1) <= 0.0) || (Ye_rc(1) <= 0.0) || (press_rc_dummy[1] <= 0.0)) {
+      if ((rho_rc(0) <= 0.0) || (entropy_rc(0) <= 0.0) || (Ye_rc(0) <= 0.0) ||
+          (press_rc_dummy[0] <= 0.0) || (rho_rc(1) <= 0.0) ||
+          (entropy_rc(1) <= 0.0) || (Ye_rc(1) <= 0.0) ||
+          (press_rc_dummy[1] <= 0.0)) {
 
-      	useLO = true;
+        useLO = true;
 
         vec<CCTK_REAL, 2> rhoLO_rc{reconstruct_loworder(rho, p, true, true)};
-        vec<CCTK_REAL, 2> entropyLO_rc{reconstruct_loworder(entropy, p, false, false)};
+        vec<CCTK_REAL, 2> entropyLO_rc{
+            reconstruct_loworder(entropy, p, false, false)};
         vec<CCTK_REAL, 2> YeLO_rc{reconstruct_loworder(Ye, p, false, false)};
-        vec<CCTK_REAL, 2> pressLO_rc{reconstruct_loworder(press, p, false, true)};
+        vec<CCTK_REAL, 2> pressLO_rc{
+            reconstruct_loworder(press, p, false, true)};
 
         rho_rc = rhoLO_rc;
         entropy_rc = entropyLO_rc;
         Ye_rc = YeLO_rc;
         press_rc_dummy[0] = pressLO_rc(0);
-	press_rc_dummy[1] = pressLO_rc(1);
+        press_rc_dummy[1] = pressLO_rc(1);
       }
       // End lower-order
 
@@ -341,7 +346,6 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
         temp_rc(f) =
             eos_3p->temp_from_valid_rho_eps_ye(rho_rc(f), eps_rc(f), Ye_rc(f));
       }
-
     }
 
     const vec<CCTK_REAL, 2> rhoh_rc([&](int f) ARITH_INLINE {
@@ -367,7 +371,7 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
       if (useLO) {
         tmp = reconstruct_loworder(gf_Bvecs(d), p, false, false);
         Bs_rc(d)(0) = tmp[0];
-	Bs_rc(d)(1) = tmp[1];
+        Bs_rc(d)(1) = tmp[1];
       }
       // End lower-order
     };
@@ -383,21 +387,21 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
     switch (rec_var) {
     case rec_var_t::v_vec: {
 
-      array<CCTK_REAL, 2>
-          vels_rc_dummy; // note: can't copy array<,2> to vec<,2>, only construct
+      array<CCTK_REAL, 2> vels_rc_dummy; // note: can't copy array<,2> to
+                                         // vec<,2>, only construct
 
       for (int i = 0; i <= 2; ++i) { // loop over components
         vels_rc_dummy = reconstruct_pt(gf_vels(i), p, false, false);
         vels_rc(i)(0) = vels_rc_dummy[0];
         vels_rc(i)(1) = vels_rc_dummy[1];
 
-	// Lower-order
+        // Lower-order
         if (useLO) {
           vels_rc_dummy = reconstruct_loworder(gf_vels(i), p, false, false);
           vels_rc(i)(0) = vels_rc_dummy[0];
-	  vels_rc(i)(1) = vels_rc_dummy[1];
+          vels_rc(i)(1) = vels_rc_dummy[1];
         }
-	// End lower-order
+        // End lower-order
       }
 
       /* co-velocity measured by Eulerian observer: v_j */
@@ -417,10 +421,11 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
       // Lower-order
       if (useLO) {
         vec<vec<CCTK_REAL, 2>, 3> zvecLO_rc([&](int i) ARITH_INLINE {
-          return vec<CCTK_REAL, 2>{reconstruct_loworder(gf_zvec(i), p, false, false)};
+          return vec<CCTK_REAL, 2>{
+              reconstruct_loworder(gf_zvec(i), p, false, false)};
         });
-         
-       	zvec_rc = zvecLO_rc;
+
+        zvec_rc = zvecLO_rc;
       }
       // End lower-order
 
@@ -447,9 +452,10 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
       // Lower-order
       if (useLO) {
         vec<vec<CCTK_REAL, 2>, 3> svecLO_rc([&](int i) ARITH_INLINE {
-          return vec<CCTK_REAL, 2>{reconstruct_loworder(gf_svec(i), p, false, false)};
+          return vec<CCTK_REAL, 2>{
+              reconstruct_loworder(gf_svec(i), p, false, false)};
         });
-        
+
         svec_rc = svecLO_rc;
       }
       // End lower-order
@@ -806,13 +812,11 @@ extern "C" void AsterX_Fluxes(CCTK_ARGUMENTS) {
   }
 }
 
-template <int dir>
-void CalcFstag(CCTK_ARGUMENTS) {
+template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_CalcAuxTermsForAvecPsiRHS;
   DECLARE_CCTK_PARAMETERS;
 
-  constexpr array<int, dim> edge_centred = {(dir == 0), (dir == 1),
-                                            (dir == 2)};
+  constexpr array<int, dim> edge_centred = {(dir == 0), (dir == 1), (dir == 2)};
 
   const vec<GF3D2<CCTK_REAL>, dim> gf_F{Fx_stag, Fy_stag, Fz_stag};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Avecs{Avec_x, Avec_y, Avec_z};
@@ -857,7 +861,6 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
         // Fz(p.I) = alp(p.I) * sqrtg * Aup(2);
         G(p.I) = alp(p.I) * Psi(p.I) / sqrtg - calc_contraction(betas, A_vert);
       });
-
 
   CalcFstag<0>(CCTK_PASS_CTOC);
   CalcFstag<1>(CCTK_PASS_CTOC);
