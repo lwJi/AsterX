@@ -6,9 +6,9 @@
 #include <cctk_Parameters.h>
 
 #include <mat.hxx>
-#include <vec.hxx>
-#include <sum.hxx>
 #include <simd.hxx>
+#include <sum.hxx>
+#include <vec.hxx>
 
 #include <algorithm>
 #include <array>
