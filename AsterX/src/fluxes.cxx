@@ -842,7 +842,7 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         /* interpolate A to vertices */
         const vec<CCTK_REAL, 3> A_vert([&](int i) ARITH_INLINE {
-          return calc_avg_e2v_4th(gf_Avecs(i), p, i);
+          return calc_avg_e2v_4th_hermit(gf_Avecs(i), p, i);
         });
         const smat<CCTK_REAL, 3> g{gxx(p.I), gxy(p.I), gxz(p.I),
                                    gyy(p.I), gyz(p.I), gzz(p.I)};
