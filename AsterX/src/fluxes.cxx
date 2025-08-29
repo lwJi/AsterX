@@ -866,12 +866,7 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
         const vec<CCTK_REAL, 3> betas{betax(p.I), betay(p.I), betaz(p.I)};
         const CCTK_REAL detg = calc_det(g);
         const CCTK_REAL sqrtg = sqrt(detg);
-        const smat<CCTK_REAL, 3> ug = calc_inv(g, detg);
-        const vec<CCTK_REAL, 3> Aup = calc_contraction(ug, A_vert);
 
-        // Fx(p.I) = alp(p.I) * sqrtg * Aup(0);
-        // Fy(p.I) = alp(p.I) * sqrtg * Aup(1);
-        // Fz(p.I) = alp(p.I) * sqrtg * Aup(2);
         G(p.I) = alp(p.I) * Psi(p.I) / sqrtg - calc_contraction(betas, A_vert);
       });
 
