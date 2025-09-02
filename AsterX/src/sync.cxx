@@ -101,7 +101,7 @@ extern "C" void AsterX_RestrictdBstag(CCTK_ARGUMENTS) {
 
   active_levels->loop_fine_to_coarse([&](const auto &leveldata) {
     if (leveldata.level < ghext->num_levels() - 1)
-      Restrict(cctkGH, leveldata.level, groups);
+      RestrictNoPoison(cctkGH, leveldata.level, groups);
   });
 }
 
