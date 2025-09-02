@@ -826,7 +826,7 @@ template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Avecs{Avec_x, Avec_y, Avec_z};
   const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
 
-  grid.loop_all_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
+  grid.loop_allm1_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         const CCTK_REAL alp_e = calc_avg_v2e(alp, p, dir_i);
