@@ -52,12 +52,13 @@ calc_avg_e2v(const GF3D2<const T> &gf, const PointDesc &p, const int dir) {
 template <typename T>
 CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline T
 calc_avg_v2e(const GF3D2<const T> &gf, const PointDesc &p, const int dir) {
+  constexpr vect<T, 4> wt4 = {-1 / T(16), 9 / T(16), 9 / T(16), -1 / T(16)};
   T gf_avg = 0.0;
 
-  for (int di = 0; di < 2; ++di) {
-    gf_avg += gf(p.I + p.DI[dir] * di);
+  for (int di = 0; di < 4; ++di) {
+    gf_avg += gf(p.I + p.DI[dir] * (di - 1)) * wt4[di];
   }
-  return gf_avg / 2.0;
+  return gf_avg;
 }
 
 template <int dir_i, typename T>
