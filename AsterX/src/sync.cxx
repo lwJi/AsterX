@@ -2,9 +2,9 @@
 #include <cctk_Arguments.h>
 #include <cctk_Parameters.h>
 
+#include "../../../CarpetX/CarpetX/src/fillpatch.hxx"
 #include "../../../CarpetX/CarpetX/src/schedule.hxx"
 #include "../../../CarpetX/CarpetX/src/task_manager.hxx"
-#include "../../../CarpetX/CarpetX/src/fillpatch.hxx"
 
 namespace AsterX {
 using namespace CarpetX;
@@ -88,6 +88,23 @@ extern "C" void AsterX_ApplyOuterBCOnFluxes(CCTK_ARGUMENTS) {
   groups.push_back(CCTK_GroupIndex("AsterX::a_zface"));
 
   ApplyOuterBC(CCTK_PASS_CTOC, groups);
+}
+
+extern "C" void AsterX_RestrictdBs(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_PARAMETERS;
+
+  std::vector<int> groups;
+
+  groups.push_back(CCTK_GroupIndex("AsterX::dBx_stag"));
+  groups.push_back(CCTK_GroupIndex("AsterX::dBy_stag"));
+  groups.push_back(CCTK_GroupIndex("AsterX::dBz_stag"));
+
+  groups.push_back(CCTK_GroupIndex("AsterX::dB"));
+
+  active_levels->loop_fine_to_coarse([&](const auto &leveldata) {
+    if (leveldata.level < ghext->num_levels() - 1)
+      RestrictNoPoison(cctkGH, leveldata.level, groups);
+  });
 }
 
 } // namespace AsterX
