@@ -6,9 +6,9 @@
 #include <cctk_Parameters.h>
 
 #include <mat.hxx>
-#include <vec.hxx>
-#include <sum.hxx>
 #include <simd.hxx>
+#include <sum.hxx>
+#include <vec.hxx>
 
 #include <algorithm>
 #include <array>
@@ -43,6 +43,18 @@ template <typename T>
 CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline T
 calc_fd2_v2e(const GF3D2<const T> &gf, const PointDesc &p, const int dir) {
   return (gf(p.I + p.DI[dir]) - gf(p.I)) / p.DX[dir];
+}
+
+template <typename T>
+CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline T
+calc_fd4_v2e(const GF3D2<const T> &gf, const PointDesc &p, const int dir) {
+  constexpr vect<T, 4> wt4 = {+1 / T(24), -27 / T(24), +27 / T(24), -1 / T(24)};
+  T fd_avg = 0.0;
+
+  for (int di = 0; di < 4; ++di) {
+    fd_avg += gf(p.I + p.DI[dir] * (di - 1)) * wt4[di];
+  }
+  return fd_avg / p.DX[dir];
 }
 
 template <typename T>
