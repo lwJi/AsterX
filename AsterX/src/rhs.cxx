@@ -79,6 +79,8 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
   const vec<GF3D2<const CCTK_REAL>, dim> gf_fDYe{fxDYe, fyDYe, fzDYe};
   const vec<vec<GF3D2<const CCTK_REAL>, dim>, dim> gf_fBs{
       {fxBx, fyBx, fzBx}, {fxBy, fyBy, fzBy}, {fxBz, fyBz, fzBz}};
+  const vec<GF3D2<const CCTK_REAL>, dim> gf_Abeta{Abetax_stag, Abetay_stag,
+                                                  Abetaz_stag};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Fstag{Fx_stag, Fy_stag, Fz_stag};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Fbeta{Fbetax, Fbetay, Fbetaz};
@@ -177,7 +179,7 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
       break;
     }
     case vector_potential_gauge_t::generalized_lorentz: {
-      return -E - calc_fd2_v2e(G, p, i);
+      return -E - calc_fd2_v2e(G, p, i) + calc_fd2_c2c(gf_Abeta(i), p, i);
       break;
     }
     default:

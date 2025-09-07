@@ -240,6 +240,7 @@ if (CCTK_EQUALS(vector_potential_gauge, "generalized Lorentz")) {
     READS: Aux_in_RHSof_A_Psi(everywhere)
     WRITES: Aux_in_RHSof_A_Psi(everywhere)
     WRITES: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
+    WRITES: Abetax_stag(everywhere) Abetay_stag(everywhere) Abetaz_stag(everywhere)
   } "Calculate the auxiliary terms for the rhs of Avec and Psi"
 }
 
@@ -267,6 +268,7 @@ SCHEDULE AsterX_RHS IN AsterX_RHSGroup AFTER AsterX_SourceTerms
   READS: densrhs(interior) taurhs(interior) momrhs(interior) DEntrhs(interior) DYe_rhs(interior)
   READS: Psi(everywhere)
   READS: Aux_in_RHSof_A_Psi(everywhere) Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
+  READS: Abetax_stag(everywhere) Abetay_stag(everywhere) Abetaz_stag(everywhere)
   READS: dBx_stag(everywhere) dBy_stag(everywhere) dBz_stag(everywhere)
   READS: vtilde_xface(everywhere) vtilde_yface(everywhere) vtilde_zface(everywhere)
   READS: a_xface(everywhere) a_yface(everywhere) a_zface(everywhere)

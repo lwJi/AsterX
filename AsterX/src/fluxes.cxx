@@ -823,13 +823,19 @@ template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
   constexpr int dir_k = (dir_i == 0) ? 2 : ((dir_i == 1) ? 0 : 1);
 
   const vec<GF3D2<CCTK_REAL>, dim> gf_F{Fx_stag, Fy_stag, Fz_stag};
+  const vec<GF3D2<CCTK_REAL>, dim> gf_Abeta{Abetax_stag, Abetay_stag,
+                                            Abetaz_stag};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Avecs{Avec_x, Avec_y, Avec_z};
+  const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
   const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
 
   grid.loop_allm1_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         const CCTK_REAL alp_e = calc_avg_v2e(alp, p, dir_i);
+        const vec<CCTK_REAL, 3> beta_e([&](int i) ARITH_INLINE {
+          return calc_avg_v2e(gf_beta(i), p, dir_i);
+        });
         const smat<CCTK_REAL, 3> g_e([&](int i, int j) ARITH_INLINE {
           return calc_avg_v2e(gf_g(i, j), p, dir_i);
         });
@@ -845,6 +851,7 @@ template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
         const vec<CCTK_REAL, 3> Aup_e = calc_contraction(ug_e, A_e);
 
         gf_F(dir_i)(p.I) = alp_e * sqrtg_e * Aup_e(dir_i);
+        gf_Abeta(dir_i)(p.I) = calc_contraction(beta_e, A_e);
       });
 }
 
@@ -857,17 +864,12 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
   grid.loop_allm1_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        /* interpolate A to vertices */
-        const vec<CCTK_REAL, 3> A_vert([&](int i) ARITH_INLINE {
-          return calc_avg_e2v(gf_Avecs(i), p, i);
-        });
         const smat<CCTK_REAL, 3> g{gxx(p.I), gxy(p.I), gxz(p.I),
                                    gyy(p.I), gyz(p.I), gzz(p.I)};
-        const vec<CCTK_REAL, 3> betas{betax(p.I), betay(p.I), betaz(p.I)};
         const CCTK_REAL detg = calc_det(g);
         const CCTK_REAL sqrtg = sqrt(detg);
 
-        G(p.I) = alp(p.I) * Psi(p.I) / sqrtg - calc_contraction(betas, A_vert);
+        G(p.I) = alp(p.I) * Psi(p.I) / sqrtg;
       });
 
   CalcFstag<0>(CCTK_PASS_CTOC);
