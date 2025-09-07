@@ -829,7 +829,14 @@ template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
   const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
   const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
 
-  grid.loop_allm1_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
+  grid.loop_all_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+        gf_F(dir_i)(p.I) = 0;
+        gf_Abeta(dir_i)(p.I) = 0;
+      });
+
+  grid.loop_mix_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         const CCTK_REAL alp_e = calc_avg_v2e(alp, p, dir_i);
@@ -861,7 +868,7 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
 
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Avecs{Avec_x, Avec_y, Avec_z};
 
-  grid.loop_allm1_device<0, 0, 0>(
+  grid.loop_all_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         const smat<CCTK_REAL, 3> g{gxx(p.I), gxy(p.I), gxz(p.I),
@@ -870,19 +877,14 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
         const CCTK_REAL sqrtg = sqrt(detg);
 
         G(p.I) = alp(p.I) * Psi(p.I) / sqrtg;
+        Fbetax(p.I) = betax(p.I) * Psi(p.I);
+        Fbetay(p.I) = betay(p.I) * Psi(p.I);
+        Fbetaz(p.I) = betaz(p.I) * Psi(p.I);
       });
 
   CalcFstag<0>(CCTK_PASS_CTOC);
   CalcFstag<1>(CCTK_PASS_CTOC);
   CalcFstag<2>(CCTK_PASS_CTOC);
-
-  grid.loop_all_device<0, 0, 0>(grid.nghostzones,
-                                [=] CCTK_DEVICE(const PointDesc &p)
-                                    CCTK_ATTRIBUTE_ALWAYS_INLINE {
-                                      Fbetax(p.I) = betax(p.I) * Psi(p.I);
-                                      Fbetay(p.I) = betay(p.I) * Psi(p.I);
-                                      Fbetaz(p.I) = betaz(p.I) * Psi(p.I);
-                                    });
 }
 
 } // namespace AsterX
