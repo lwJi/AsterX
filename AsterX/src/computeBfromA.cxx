@@ -21,6 +21,8 @@ template <int dir> void ComputeStaggeredB(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_ComputedBstagFromA;
   DECLARE_CCTK_PARAMETERS;
 
+  const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
+
   const std::array dx{CCTK_DELTA_SPACE(0), CCTK_DELTA_SPACE(1),
                       CCTK_DELTA_SPACE(2)};
   const std::array idx{1 / dx[0], 1 / dx[1], 1 / dx[2]};
@@ -51,6 +53,20 @@ template <int dir> void ComputeStaggeredB(CCTK_ARGUMENTS) {
                           idx[1] * (Avec_x(ijpk) - Avec_x(p.I));
         }
 
+        const smat<CCTK_REAL, 3> g_avg([&](int i, int j) ARITH_INLINE {
+          return calc_avg_v2f(gf_g(i, j), p, dir);
+        });
+        const CCTK_REAL detg_avg = calc_det(g_avg);
+        const CCTK_REAL sqrtg = sqrt(detg_avg);
+
+        if (dir == 0) {
+          Bx_stag(p.I) = dBx_stag(p.I) / sqrtg;
+        } else if (dir == 1) {
+          By_stag(p.I) = dBy_stag(p.I) / sqrtg;
+        } else if (dir == 2) {
+          Bz_stag(p.I) = dBz_stag(p.I) / sqrtg;
+        }
+
         // TODO: need to implement copy conditions?
       });
 }
@@ -68,6 +84,8 @@ extern "C" void AsterX_ComputedBFromdBstag(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_ComputedBFromdBstag;
   DECLARE_CCTK_PARAMETERS;
 
+  const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
+
   grid.loop_all_device<1, 1, 1>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
@@ -76,11 +94,17 @@ extern "C" void AsterX_ComputedBFromdBstag(CCTK_ARGUMENTS) {
         const auto ijpk = p.I + p.DI[1];
         const auto ijkp = p.I + p.DI[2];
 
+        const smat<CCTK_REAL, 3> g_avg([&](int i, int j) ARITH_INLINE {
+          return calc_avg_v2c(gf_g(i, j), p);
+        });
+        const CCTK_REAL detg_avg = calc_det(g_avg);
+        const CCTK_REAL sqrtg = sqrt(detg_avg);
+
         /* Second order interpolation of staggered B components to cell center
          */
-        dBx(p.I) = 0.5 * (dBx_stag(p.I) + dBx_stag(ipjk));
-        dBy(p.I) = 0.5 * (dBy_stag(p.I) + dBy_stag(ijpk));
-        dBz(p.I) = 0.5 * (dBz_stag(p.I) + dBz_stag(ijkp));
+        dBx(p.I) = 0.5 * (Bx_stag(p.I) + Bx_stag(ipjk)) * sqrtg;
+        dBy(p.I) = 0.5 * (By_stag(p.I) + By_stag(ijpk)) * sqrtg;
+        dBz(p.I) = 0.5 * (Bz_stag(p.I) + Bz_stag(ijkp)) * sqrtg;
       });
 }
 
