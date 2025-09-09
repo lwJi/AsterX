@@ -6,12 +6,12 @@
 #include <cmath>
 
 #include "c2p.hxx"
+#include "c2p_1DEntropy.hxx"
 #include "c2p_1DPalenzuela.hxx"
 #include "c2p_2DNoble.hxx"
-#include "c2p_1DEntropy.hxx"
 
-#include "setup_eos.hxx"
 #include "aster_utils.hxx"
+#include "setup_eos.hxx"
 
 namespace AsterX {
 using namespace std;
@@ -25,13 +25,13 @@ enum class c2p_first_t { None, Noble, Palenzuela, Entropy };
 enum class c2p_second_t { None, Noble, Palenzuela, Entropy };
 
 enum C2PFlag : CCTK_INT {
-  C2P_INIT = 0,       // initial value
-  C2P_PRIME = 1,      // 2‑D Noble solver succeeded
-  C2P_SECOND = 2,     // 1‑D Palenzuela solver succeeded
-  C2P_ENTROPY = 3,    // 1‑D Entropy (kappa) solver succeeded
-  C2P_ATMO = 4,       // when (cv.dens <= sqrt_detg * rho_atmo_cut) is true
-  C2P_AVG = 5,        // primitives obtained by neighbour‑averaging
-  C2P_FAIL = 6        // when C2P fails
+  C2P_INIT = 0,    // initial value
+  C2P_PRIME = 1,   // 2‑D Noble solver succeeded
+  C2P_SECOND = 2,  // 1‑D Palenzuela solver succeeded
+  C2P_ENTROPY = 3, // 1‑D Entropy (kappa) solver succeeded
+  C2P_ATMO = 4,    // when (cv.dens <= sqrt_detg * rho_atmo_cut) is true
+  C2P_AVG = 5,     // primitives obtained by neighbour‑averaging
+  C2P_FAIL = 6     // when C2P fails
 };
 
 template <typename EOSIDType, typename EOSType>
@@ -95,11 +95,15 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
 
       if (use_press_atmo) {
         press_atm = (radial_distance > r_atmo)
-                       ? (p_atmo * pow(r_atmo / radial_distance, n_press_atmo))
-                       : p_atmo;
-        press_atm = std::max(eos_3p->press_from_valid_rho_temp_ye(rho_atm, eos_3p->rgtemp.min, Ye_atmo), press_atm);
-        eps_atm = eos_3p->eps_from_valid_rho_press_ye(rho_atm, press_atm, Ye_atmo);
-        temp_atm = eos_3p->temp_from_valid_rho_eps_ye(rho_atm, eps_atm, Ye_atmo);
+                        ? (p_atmo * pow(r_atmo / radial_distance, n_press_atmo))
+                        : p_atmo;
+        press_atm = std::max(eos_3p->press_from_valid_rho_temp_ye(
+                                 rho_atm, eos_3p->rgtemp.min, Ye_atmo),
+                             press_atm);
+        eps_atm =
+            eos_3p->eps_from_valid_rho_press_ye(rho_atm, press_atm, Ye_atmo);
+        temp_atm =
+            eos_3p->temp_from_valid_rho_eps_ye(rho_atm, eps_atm, Ye_atmo);
       } else {
         temp_atm = (radial_distance > r_atmo)
                        ? (t_atmo * pow(r_atmo / radial_distance, n_temp_atmo))
@@ -108,7 +112,8 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
         // temp_atm = max(temp_atm, eos_3p->interptable->xmin<1>());
         press_atm =
             eos_3p->press_from_valid_rho_temp_ye(rho_atm, temp_atm, Ye_atmo);
-        eps_atm = eos_3p->eps_from_valid_rho_temp_ye(rho_atm, temp_atm, Ye_atmo);
+        eps_atm =
+            eos_3p->eps_from_valid_rho_temp_ye(rho_atm, temp_atm, Ye_atmo);
         // eps_atm should be kept consistent with temp_atm, so we do not use
         // the setting below
         // eps_atm =
@@ -118,11 +123,13 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
     } else {
       const CCTK_REAL gm1 = eos_1p->gm1_from_valid_rho(rho_atm);
       eps_atm = eos_1p->sed_from_valid_gm1(gm1);
-      eps_atm = std::max(eos_3p->eps_from_valid_rho_temp_ye(rho_atm, eos_3p->rgtemp.min, Ye_atmo), eps_atm);
+      eps_atm = std::max(eos_3p->eps_from_valid_rho_temp_ye(
+                             rho_atm, eos_3p->rgtemp.min, Ye_atmo),
+                         eps_atm);
       temp_atm = eos_3p->temp_from_valid_rho_eps_ye(rho_atm, eps_atm, Ye_atmo);
       // eps_atm should be kept consistent with temp_atm, so we do not use
       // the setting below
-      //eps_atm =
+      // eps_atm =
       //    std::min(std::max(eos_3p->rgeps.min, eps_atm), eos_3p->rgeps.max);
       press_atm =
           eos_3p->press_from_valid_rho_eps_ye(rho_atm, eps_atm, Ye_atmo);
@@ -138,17 +145,20 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
     // Construct Noble c2p object:
     c2p_2DNoble c2p_Noble(eos_3p, atmo, max_iter, c2p_tol, alp_thresh,
                           cons_error_limit, vw_lim, B_lim, rho_BH, eps_BH,
-                          vwlim_BH, Ye_lenient, use_z, use_temperature, use_press_atmo);
+                          vwlim_BH, Ye_lenient, use_z, use_temperature,
+                          use_press_atmo);
 
     // Construct Palenzuela c2p object:
     c2p_1DPalenzuela c2p_Pal(eos_3p, atmo, max_iter, c2p_tol, alp_thresh,
                              cons_error_limit, vw_lim, B_lim, rho_BH, eps_BH,
-                             vwlim_BH, Ye_lenient, use_z, use_temperature, use_press_atmo);
+                             vwlim_BH, Ye_lenient, use_z, use_temperature,
+                             use_press_atmo);
 
     // Construct Entropy c2p object:
     c2p_1DEntropy c2p_Ent(eos_3p, atmo, max_iter, c2p_tol, alp_thresh,
                           cons_error_limit, vw_lim, B_lim, rho_BH, eps_BH,
-                          vwlim_BH, Ye_lenient, use_z, use_temperature, use_press_atmo);
+                          vwlim_BH, Ye_lenient, use_z, use_temperature,
+                          use_press_atmo);
 
     // ----------
 
@@ -250,7 +260,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
     c2p_Noble.cons_floors_and_ceilings(eos_3p, cv, glo, tauFluid_atm);
 
     // DEBUG
-    const cons_vars cv_check = cv; 
+    const cons_vars cv_check = cv;
     // DEBUG
 
     // ----- ----- C2P ----- -----
@@ -291,46 +301,39 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
 
         // DEBUG
 
-	if (cv.dens != dens(p.I) ||
-            cv.mom(0) != cv_check.mom(0) ||
-	    cv.mom(1) != cv_check.mom(1) ||
-	    cv.mom(2) != cv_check.mom(2) ||
-	    cv.tau != cv_check.tau ||
-	    cv.DYe != DYe(p.I) ||
-	    cv.DEnt != DEnt(p.I) ||
-	    cv.dBvec(0) != dBx(p.I) ||
-	    cv.dBvec(1) != dBy(p.I) ||
-	    cv.dBvec(2) != dBz(p.I) ) {
+        if (cv.dens != dens(p.I) || cv.mom(0) != cv_check.mom(0) ||
+            cv.mom(1) != cv_check.mom(1) || cv.mom(2) != cv_check.mom(2) ||
+            cv.tau != cv_check.tau || cv.DYe != DYe(p.I) ||
+            cv.DEnt != DEnt(p.I) || cv.dBvec(0) != dBx(p.I) ||
+            cv.dBvec(1) != dBy(p.I) || cv.dBvec(2) != dBz(p.I)) {
 
-            printf("FIRST: cctk_iteration = %i, ijk = %i, %i, %i, "
-             "x, y, z = %24.16e, %24.16e, %24.16e.\n"
-	     "cv.dens = %24.16e, and dens(p.I) = %24.16e;\n"
-	     "cv.mom(0) = %24.16e, and momx(p.I) = %24.16e, and cv_check.mom(0) = %24.16e;\n"
-	     "cv.mom(1) = %24.16e, and momy(p.I) = %24.16e, and cv_check.mom(1) = %24.16e;\n"
-	     "cv.mom(2) = %24.16e, and momz(p.I) = %24.16e, and cv_check.mom(2) = %24.16e;\n"
-	     "cv.tau = %24.16e, and tau(p.I) = %24.16e, and cv_check.tau = %24.16e;\n"
-	     "cv.DYe = %24.16e, and DYe(p.I) = %24.16e;\n"
-	     "cv.DEnt = %24.16e, and DEnt(p.I) = %24.16e;\n"
-	     "cv.dBvec(0) = %24.16e, and dBx(p.I) = %24.16e;\n"
-	     "cv.dBvec(1) = %24.16e, and dBy(p.I) = %24.16e;\n"
-	     "cv.dBvec(2) = %24.16e, and dBz(p.I) = %24.16e;\n",
-             cctk_iteration, p.i, p.j, p.k, p.x, p.y, p.z,
-	     cv.dens, dens(p.I),
-             cv.mom(0), momx(p.I), cv_check.mom(0),
-	     cv.mom(1), momy(p.I), cv_check.mom(1),
-	     cv.mom(2), momz(p.I), cv_check.mom(2),
-	     cv.tau, tau(p.I), cv_check.tau,
-	     cv.DYe, DYe(p.I),
-	     cv.DEnt, DEnt(p.I),
-	     cv.dBvec(0), dBx(p.I),
-	     cv.dBvec(1), dBy(p.I),
-	     cv.dBvec(2), dBz(p.I) );
-	    
-	    assert(0);
-	}
+          printf("FIRST: cctk_iteration = %i, ijk = %i, %i, %i, "
+                 "x, y, z = %24.16e, %24.16e, %24.16e.\n"
+                 "cv.dens = %24.16e, and dens(p.I) = %24.16e;\n"
+                 "cv.mom(0) = %24.16e, and momx(p.I) = %24.16e, and "
+                 "cv_check.mom(0) = %24.16e;\n"
+                 "cv.mom(1) = %24.16e, and momy(p.I) = %24.16e, and "
+                 "cv_check.mom(1) = %24.16e;\n"
+                 "cv.mom(2) = %24.16e, and momz(p.I) = %24.16e, and "
+                 "cv_check.mom(2) = %24.16e;\n"
+                 "cv.tau = %24.16e, and tau(p.I) = %24.16e, and cv_check.tau = "
+                 "%24.16e;\n"
+                 "cv.DYe = %24.16e, and DYe(p.I) = %24.16e;\n"
+                 "cv.DEnt = %24.16e, and DEnt(p.I) = %24.16e;\n"
+                 "cv.dBvec(0) = %24.16e, and dBx(p.I) = %24.16e;\n"
+                 "cv.dBvec(1) = %24.16e, and dBy(p.I) = %24.16e;\n"
+                 "cv.dBvec(2) = %24.16e, and dBz(p.I) = %24.16e;\n",
+                 cctk_iteration, p.i, p.j, p.k, p.x, p.y, p.z, cv.dens,
+                 dens(p.I), cv.mom(0), momx(p.I), cv_check.mom(0), cv.mom(1),
+                 momy(p.I), cv_check.mom(1), cv.mom(2), momz(p.I),
+                 cv_check.mom(2), cv.tau, tau(p.I), cv_check.tau, cv.DYe,
+                 DYe(p.I), cv.DEnt, DEnt(p.I), cv.dBvec(0), dBx(p.I),
+                 cv.dBvec(1), dBy(p.I), cv.dBvec(2), dBz(p.I));
 
-	// DEBUG
+          assert(0);
+        }
 
+        // DEBUG
 
         // Calling the second C2P
         switch (c2p_sec) {
@@ -358,12 +361,12 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
       if (rep_first.failed() && rep_second.failed()) {
 
         if (use_entropy_fix) {
-          
-          c2p_flag_code = C2P_ENTROPY; 
+
+          c2p_flag_code = C2P_ENTROPY;
           c2p_Ent.solve(eos_3p, pv, cv, glo, rep_ent);
-           
+
           if (rep_ent.failed()) {
-            
+
             c2p_flag_local = false;
             c2p_flag_code = C2P_FAIL;
 
@@ -397,50 +400,41 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
                      Avec_x(p.I), Avec_y(p.I), Avec_z(p.I));
             }
 
-        // DEBUG
+            // DEBUG
 
-	if (cv.dens != dens(p.I) ||
-            cv.mom(0) != cv_check.mom(0) ||
-	    cv.mom(1) != cv_check.mom(1) ||
-	    cv.mom(2) != cv_check.mom(2) ||
-	    cv.tau != cv_check.tau ||
-	    cv.DYe != DYe(p.I) ||
-	    cv.DEnt != DEnt(p.I) ||
-	    cv.dBvec(0) != dBx(p.I) ||
-	    cv.dBvec(1) != dBy(p.I) ||
-	    cv.dBvec(2) != dBz(p.I) ) {
+            if (cv.dens != dens(p.I) || cv.mom(0) != cv_check.mom(0) ||
+                cv.mom(1) != cv_check.mom(1) || cv.mom(2) != cv_check.mom(2) ||
+                cv.tau != cv_check.tau || cv.DYe != DYe(p.I) ||
+                cv.DEnt != DEnt(p.I) || cv.dBvec(0) != dBx(p.I) ||
+                cv.dBvec(1) != dBy(p.I) || cv.dBvec(2) != dBz(p.I)) {
 
-            printf("ENTROPY: cctk_iteration = %i, ijk = %i, %i, %i, "
-             "x, y, z = %24.16e, %24.16e, %24.16e.\n"
-	     "cv.dens = %24.16e, and dens(p.I) = %24.16e;\n"
-	     "cv.mom(0) = %24.16e, and momx(p.I) = %24.16e, and cv_check.mom(0) = %24.16e;\n"
-	     "cv.mom(1) = %24.16e, and momy(p.I) = %24.16e, and cv_check.mom(1) = %24.16e;\n"
-	     "cv.mom(2) = %24.16e, and momz(p.I) = %24.16e, and cv_check.mom(2) = %24.16e;\n"
-	     "cv.tau = %24.16e, and tau(p.I) = %24.16e, and cv_check.tau = %24.16e;\n"
-	     "cv.DYe = %24.16e, and DYe(p.I) = %24.16e;\n"
-	     "cv.DEnt = %24.16e, and DEnt(p.I) = %24.16e;\n"
-	     "cv.dBvec(0) = %24.16e, and dBx(p.I) = %24.16e;\n"
-	     "cv.dBvec(1) = %24.16e, and dBy(p.I) = %24.16e;\n"
-	     "cv.dBvec(2) = %24.16e, and dBz(p.I) = %24.16e;\n",
-             cctk_iteration, p.i, p.j, p.k, p.x, p.y, p.z,
-	     cv.dens, dens(p.I),
-             cv.mom(0), momx(p.I), cv_check.mom(0),
-	     cv.mom(1), momy(p.I), cv_check.mom(1),
-	     cv.mom(2), momz(p.I), cv_check.mom(2),
-	     cv.tau, tau(p.I), cv_check.tau,
-	     cv.DYe, DYe(p.I),
-	     cv.DEnt, DEnt(p.I),
-	     cv.dBvec(0), dBx(p.I),
-	     cv.dBvec(1), dBy(p.I),
-	     cv.dBvec(2), dBz(p.I) );
+              printf("ENTROPY: cctk_iteration = %i, ijk = %i, %i, %i, "
+                     "x, y, z = %24.16e, %24.16e, %24.16e.\n"
+                     "cv.dens = %24.16e, and dens(p.I) = %24.16e;\n"
+                     "cv.mom(0) = %24.16e, and momx(p.I) = %24.16e, and "
+                     "cv_check.mom(0) = %24.16e;\n"
+                     "cv.mom(1) = %24.16e, and momy(p.I) = %24.16e, and "
+                     "cv_check.mom(1) = %24.16e;\n"
+                     "cv.mom(2) = %24.16e, and momz(p.I) = %24.16e, and "
+                     "cv_check.mom(2) = %24.16e;\n"
+                     "cv.tau = %24.16e, and tau(p.I) = %24.16e, and "
+                     "cv_check.tau = %24.16e;\n"
+                     "cv.DYe = %24.16e, and DYe(p.I) = %24.16e;\n"
+                     "cv.DEnt = %24.16e, and DEnt(p.I) = %24.16e;\n"
+                     "cv.dBvec(0) = %24.16e, and dBx(p.I) = %24.16e;\n"
+                     "cv.dBvec(1) = %24.16e, and dBy(p.I) = %24.16e;\n"
+                     "cv.dBvec(2) = %24.16e, and dBz(p.I) = %24.16e;\n",
+                     cctk_iteration, p.i, p.j, p.k, p.x, p.y, p.z, cv.dens,
+                     dens(p.I), cv.mom(0), momx(p.I), cv_check.mom(0),
+                     cv.mom(1), momy(p.I), cv_check.mom(1), cv.mom(2),
+                     momz(p.I), cv_check.mom(2), cv.tau, tau(p.I), cv_check.tau,
+                     cv.DYe, DYe(p.I), cv.DEnt, DEnt(p.I), cv.dBvec(0),
+                     dBx(p.I), cv.dBvec(1), dBy(p.I), cv.dBvec(2), dBz(p.I));
 
-	    assert(0);
-	}
+              assert(0);
+            }
 
-	// DEBUG
-
-
-
+            // DEBUG
 
             if (mask_local != 1.0) {
               // Failure inside mask
@@ -489,49 +483,41 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
                 Avec_x(p.I), Avec_y(p.I), Avec_z(p.I));
           }
 
-        // DEBUG
+          // DEBUG
 
-	if (cv.dens != dens(p.I) ||
-            cv.mom(0) != cv_check.mom(0) ||
-	    cv.mom(1) != cv_check.mom(1) ||
-	    cv.mom(2) != cv_check.mom(2) ||
-	    cv.tau != cv_check.tau ||
-	    cv.DYe != DYe(p.I) ||
-	    cv.DEnt != DEnt(p.I) ||
-	    cv.dBvec(0) != dBx(p.I) ||
-	    cv.dBvec(1) != dBy(p.I) ||
-	    cv.dBvec(2) != dBz(p.I) ) {
+          if (cv.dens != dens(p.I) || cv.mom(0) != cv_check.mom(0) ||
+              cv.mom(1) != cv_check.mom(1) || cv.mom(2) != cv_check.mom(2) ||
+              cv.tau != cv_check.tau || cv.DYe != DYe(p.I) ||
+              cv.DEnt != DEnt(p.I) || cv.dBvec(0) != dBx(p.I) ||
+              cv.dBvec(1) != dBy(p.I) || cv.dBvec(2) != dBz(p.I)) {
 
             printf("SECOND: cctk_iteration = %i, ijk = %i, %i, %i, "
-             "x, y, z = %24.16e, %24.16e, %24.16e.\n"
-	     "cv.dens = %24.16e, and dens(p.I) = %24.16e;\n"
-	     "cv.mom(0) = %24.16e, and momx(p.I) = %24.16e, and cv_check.mom(0) = %24.16e;\n"
-	     "cv.mom(1) = %24.16e, and momy(p.I) = %24.16e, and cv_check.mom(1) = %24.16e;\n"
-	     "cv.mom(2) = %24.16e, and momz(p.I) = %24.16e, and cv_check.mom(2) = %24.16e;\n"
-	     "cv.tau = %24.16e, and tau(p.I) = %24.16e, and cv_check.tau = %24.16e;\n"
-	     "cv.DYe = %24.16e, and DYe(p.I) = %24.16e;\n"
-	     "cv.DEnt = %24.16e, and DEnt(p.I) = %24.16e;\n"
-	     "cv.dBvec(0) = %24.16e, and dBx(p.I) = %24.16e;\n"
-	     "cv.dBvec(1) = %24.16e, and dBy(p.I) = %24.16e;\n"
-	     "cv.dBvec(2) = %24.16e, and dBz(p.I) = %24.16e;\n",
-             cctk_iteration, p.i, p.j, p.k, p.x, p.y, p.z,
-	     cv.dens, dens(p.I),
-             cv.mom(0), momx(p.I), cv_check.mom(0),
-	     cv.mom(1), momy(p.I), cv_check.mom(1),
-	     cv.mom(2), momz(p.I), cv_check.mom(2),
-	     cv.tau, tau(p.I), cv_check.tau,
-	     cv.DYe, DYe(p.I),
-	     cv.DEnt, DEnt(p.I),
-	     cv.dBvec(0), dBx(p.I),
-	     cv.dBvec(1), dBy(p.I),
-	     cv.dBvec(2), dBz(p.I) );
+                   "x, y, z = %24.16e, %24.16e, %24.16e.\n"
+                   "cv.dens = %24.16e, and dens(p.I) = %24.16e;\n"
+                   "cv.mom(0) = %24.16e, and momx(p.I) = %24.16e, and "
+                   "cv_check.mom(0) = %24.16e;\n"
+                   "cv.mom(1) = %24.16e, and momy(p.I) = %24.16e, and "
+                   "cv_check.mom(1) = %24.16e;\n"
+                   "cv.mom(2) = %24.16e, and momz(p.I) = %24.16e, and "
+                   "cv_check.mom(2) = %24.16e;\n"
+                   "cv.tau = %24.16e, and tau(p.I) = %24.16e, and cv_check.tau "
+                   "= %24.16e;\n"
+                   "cv.DYe = %24.16e, and DYe(p.I) = %24.16e;\n"
+                   "cv.DEnt = %24.16e, and DEnt(p.I) = %24.16e;\n"
+                   "cv.dBvec(0) = %24.16e, and dBx(p.I) = %24.16e;\n"
+                   "cv.dBvec(1) = %24.16e, and dBy(p.I) = %24.16e;\n"
+                   "cv.dBvec(2) = %24.16e, and dBz(p.I) = %24.16e;\n",
+                   cctk_iteration, p.i, p.j, p.k, p.x, p.y, p.z, cv.dens,
+                   dens(p.I), cv.mom(0), momx(p.I), cv_check.mom(0), cv.mom(1),
+                   momy(p.I), cv_check.mom(1), cv.mom(2), momz(p.I),
+                   cv_check.mom(2), cv.tau, tau(p.I), cv_check.tau, cv.DYe,
+                   DYe(p.I), cv.DEnt, DEnt(p.I), cv.dBvec(0), dBx(p.I),
+                   cv.dBvec(1), dBy(p.I), cv.dBvec(2), dBz(p.I));
 
-	    assert(0);
-	}
+            assert(0);
+          }
 
-	// DEBUG
-
-
+          // DEBUG
 
           if (mask_local != 1.0) {
             // Failure inside mask
@@ -585,12 +571,12 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
 
     // DEBUG
     if (cv.tau < 0.0) {
-	    printf("Tau below zero!");
-	    assert(0);
+      printf("Tau below zero!");
+      assert(0);
     }
     if (cv.DEnt < 0.0) {
-	    printf("Conserved entropy below zero!");
-	    assert(0);
+      printf("Conserved entropy below zero!");
+      assert(0);
     }
     // DEBUG
 
