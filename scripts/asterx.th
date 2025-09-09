@@ -699,7 +699,7 @@ Numerical/AEILocalInterp
 !REPO_BRANCH = development
 !REPO_PATH= $2
 !CHECKOUT =
-CarpetX/ADMBaseX
+#CarpetX/ADMBaseX
 CarpetX/Algo
 CarpetX/Arith
 CarpetX/BoxInBox
@@ -721,25 +721,36 @@ CarpetX/TestODESolvers
 CarpetX/TestODESolvers2
 CarpetX/TestProlongate
 CarpetX/TestSymmetries
-CarpetX/TmunuBaseX
+#CarpetX/TmunuBaseX
 CarpetX/WaveToyX
 
-# SpacetimeX thorns
+# CCSpacetimeX thorns
 !TARGET   = $ARR
 !TYPE     = git
-!URL      = https://github.com/EinsteinToolkit/SpacetimeX.git
+!URL      = https://github.com/lwJi/CCSpacetimeX.git
 !REPO_PATH= $2
-!CHECKOUT = SpacetimeX/AHFinder SpacetimeX/BaikalX SpacetimeX/BrillLindquist
-#DISABLED SpacetimeX/AHFinder
-#DISABLED SpacetimeX/BaikalX
-#DISABLED SpacetimeX/BrillLindquist
-SpacetimeX/Cowling
-SpacetimeX/NewRadX
-SpacetimeX/Punctures
-SpacetimeX/StaticTrumpet
-SpacetimeX/TwoPuncturesX
-SpacetimeX/Weyl
-SpacetimeX/Z4c
+!CHECKOUT =
+CCSpacetimeX/ADMBaseX
+CCSpacetimeX/TmunuBaseX
+CCSpacetimeX/NewRadX
+CCSpacetimeX/Z4c
+
+## SpacetimeX thorns
+#!TARGET   = $ARR
+#!TYPE     = git
+#!URL      = https://github.com/EinsteinToolkit/SpacetimeX.git
+#!REPO_PATH= $2
+#!CHECKOUT = SpacetimeX/AHFinder SpacetimeX/BaikalX SpacetimeX/BrillLindquist
+##DISABLED SpacetimeX/AHFinder
+##DISABLED SpacetimeX/BaikalX
+##DISABLED SpacetimeX/BrillLindquist
+#SpacetimeX/Cowling
+#SpacetimeX/NewRadX
+#SpacetimeX/Punctures
+#SpacetimeX/StaticTrumpet
+#SpacetimeX/TwoPuncturesX
+#SpacetimeX/Weyl
+#SpacetimeX/Z4c
 
 # AsterX thorns
 !TARGET   = $ARR
