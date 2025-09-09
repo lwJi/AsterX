@@ -54,12 +54,6 @@ SCHEDULE AsterX_ComputedBFromdBstag IN AsterX_InitialGroup AFTER AsterX_Computed
   WRITES: dB(everywhere)
 } "Calculate centered dB from dBstag"
 
-SCHEDULE AsterX_RestrictdBs IN AsterX_InitialGroup AFTER AsterX_ComputedBFromdBstag BEFORE AsterX_ComputeBFromdB
-{
-  LANG: C
-  OPTIONS: global
-} "Restric dBstag and dB after calculation"
-
 SCHEDULE AsterX_ComputeBFromdB IN AsterX_InitialGroup AFTER AsterX_ComputedBFromdBstag
 {
   LANG: C
@@ -178,12 +172,6 @@ SCHEDULE AsterX_ComputedBFromdBstag IN AsterX_Con2PrimGroup AFTER AsterX_Compute
   WRITES: dB(everywhere)
 } "Calculate centered dB from dBstag"
 
-SCHEDULE AsterX_RestrictdBs IN AsterX_Con2PrimGroup AFTER AsterX_ComputedBFromdBstag BEFORE AsterX_Con2Prim
-{
-  LANG: C
-  OPTIONS: global
-} "Restric dBstag and dB after calculation"
-
 SCHEDULE AsterX_Con2Prim IN AsterX_Con2PrimGroup AFTER AsterX_ComputedBFromdBstag
 {
   LANG: C
@@ -202,6 +190,12 @@ SCHEDULE AsterX_Con2Prim IN AsterX_Con2PrimGroup AFTER AsterX_ComputedBFromdBsta
   WRITES: svec(everywhere)
   WRITES: dens(everywhere) tau(everywhere) DEnt(everywhere) mom(everywhere) DYe(everywhere) dB(everywhere)
 } "Calculate primitive variables from conservative variables"
+
+SCHEDULE AsterX_RestrictBs IN AsterX_Con2PrimGroup AFTER AsterX_Con2Prim BEFORE AsterX_ApplyOuterBCOnPrim
+{
+  LANG: C
+  OPTIONS: global
+} "Restric Bvec after calculation"
 
 SCHEDULE AsterX_ApplyOuterBCOnPrim IN AsterX_Con2PrimGroup AFTER AsterX_Con2Prim
 {
