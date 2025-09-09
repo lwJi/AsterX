@@ -863,11 +863,11 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
         const vec<CCTK_REAL, 3> A_v([&](int i) ARITH_INLINE {
           return calc_avg_e2v(gf_Avecs(i), p, i);
         });
-        const CCTK_REAL alp_v = calc_avg_c2v(alp, p);
+        const CCTK_REAL alp_v = calc_avg_c2v<2>(alp, p);
         const vec<CCTK_REAL, 3> betas_v(
-            [&](int i) ARITH_INLINE { return calc_avg_c2v(gf_beta(i), p); });
+            [&](int i) ARITH_INLINE { return calc_avg_c2v<2>(gf_beta(i), p); });
         const smat<CCTK_REAL, 3> g_v([&](int i, int j) ARITH_INLINE {
-          return calc_avg_c2v(gf_g(i, j), p);
+          return calc_avg_c2v<2>(gf_g(i, j), p);
         });
         const CCTK_REAL detg_v = calc_det(g_v);
         const CCTK_REAL sqrtg_v = sqrt(detg_v);
