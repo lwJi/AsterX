@@ -167,7 +167,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
 
     /* Get covariant metric */
     const smat<CCTK_REAL, 3> glo([&](int i, int j)
-                                     ARITH_INLINE { return gf_g(i, j)(p.I)); });
+                                     ARITH_INLINE { return gf_g(i, j)(p.I); });
 
     /* Get mask */
     CCTK_REAL mask_local = use_mask ? calc_avg_v2c(aster_mask_vc, p) : 1.0;
