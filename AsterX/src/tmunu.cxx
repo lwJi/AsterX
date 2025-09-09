@@ -41,18 +41,17 @@ template <int interp_order> void Tmunu(CCTK_ARGUMENTS) {
 
   /* Loop over vertex-centers for the entire grid (0 to n-1 cells in each
    * direction) */
-  grid.loop_int_device<0, 0, 0>(
+  grid.loop_int_device<1, 1, 1>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         /* Interpolating mhd quantities to vertices */
 
-        const CCTK_REAL rho_avg = calc_avg_c2v<interp_order>(rho, p);
-        const CCTK_REAL eps_avg = calc_avg_c2v<interp_order>(eps, p);
-        const CCTK_REAL press_avg = calc_avg_c2v<interp_order>(press, p);
+        const CCTK_REAL rho_avg = rho(p.I);
+        const CCTK_REAL eps_avg = eps(p.I);
+        const CCTK_REAL press_avg = press(p.I);
 
-        const vec<CCTK_REAL, 3> Bup_avg([&](int i) ARITH_INLINE {
-          return calc_avg_c2v<interp_order>(gf_Bvecs(i), p);
-        });
+        const vec<CCTK_REAL, 3> Bup_avg(
+            [&](int i) ARITH_INLINE { return gf_Bvecs(i)(p.I); });
 
         const smat<CCTK_REAL, 3> g_low{gxx(p.I), gxy(p.I), gxz(p.I),
                                        gyy(p.I), gyz(p.I), gzz(p.I)};
@@ -70,9 +69,9 @@ template <int interp_order> void Tmunu(CCTK_ARGUMENTS) {
         CCTK_REAL w_lor;
         if (use_v_vec) {
 
-          vup_avg(0) = calc_avg_c2v<interp_order>(gf_vels(0), p);
-          vup_avg(1) = calc_avg_c2v<interp_order>(gf_vels(1), p);
-          vup_avg(2) = calc_avg_c2v<interp_order>(gf_vels(2), p);
+          vup_avg(0) = gf_vels(0)(p.I);
+          vup_avg(1) = gf_vels(1)(p.I);
+          vup_avg(2) = gf_vels(2)(p.I);
 
           /* Computing vlow */
           vlow_avg = calc_contraction(g_low, vup_avg);
@@ -82,9 +81,8 @@ template <int interp_order> void Tmunu(CCTK_ARGUMENTS) {
 
         } else {
 
-          const vec<CCTK_REAL, 3> zup_avg([&](int i) ARITH_INLINE {
-            return calc_avg_c2v<interp_order>(gf_zvecs(i), p);
-          });
+          const vec<CCTK_REAL, 3> zup_avg(
+              [&](int i) ARITH_INLINE { return gf_zvecs(i)(p.I); });
 
           /* Computing zlow */
           const vec<CCTK_REAL, 3> zlow_avg = calc_contraction(g_low, zup_avg);
