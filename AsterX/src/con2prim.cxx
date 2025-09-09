@@ -163,11 +163,11 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
     // ----------
 
     /* Get lapse */
-    const CCTK_REAL alp_avg = calc_avg_v2c(alp, p);
+    const CCTK_REAL alp_avg = alp(p.I);
 
     /* Get covariant metric */
-    const smat<CCTK_REAL, 3> glo(
-        [&](int i, int j) ARITH_INLINE { return calc_avg_v2c(gf_g(i, j), p); });
+    const smat<CCTK_REAL, 3> glo([&](int i, int j)
+                                     ARITH_INLINE { return gf_g(i, j)(p.I)); });
 
     /* Get mask */
     CCTK_REAL mask_local = use_mask ? calc_avg_v2c(aster_mask_vc, p) : 1.0;
@@ -681,7 +681,6 @@ extern "C" void AsterX_Con2Prim_Interpolate_Failed(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_Con2Prim_Interpolate_Failed;
   DECLARE_CCTK_PARAMETERS;
 
-  const smat<GF3D2<const CCTK_REAL>, 3> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
   const vec<GF3D2<CCTK_REAL>, 6> gf_prims{rho, velx, vely, velz, eps, press};
   const vec<GF3D2<CCTK_REAL>, 5> gf_cons{dens, momx, momy, momz, tau};
 
@@ -715,21 +714,6 @@ extern "C" void AsterX_Con2Prim_Interpolate_Failed(CCTK_ARGUMENTS) {
           /* reset flag */
           con2prim_flag(p.I) = C2P_AVG;
 
-          // set to atmos
-          /*
-          if (rho(p.I) <= rho_abs_min * (1 + atmo_tol))
-          {
-            const smat<CCTK_REAL, 3> g3_avg([&](int i, int j) ARITH_INLINE
-                                            { return calc_avg_v2c(gf_g(i, j),
-          p); }); const CCTK_REAL sqrtg = sqrt(calc_det(g3_avg)); const
-          vec<CCTK_REAL, 3> Bup{Bvecx(p.I), Bvecy(p.I), Bvecz(p.I)}; const
-          vec<CCTK_REAL, 3> Blow = calc_contraction(g3_avg, Bup); const
-          CCTK_REAL Bsq = calc_contraction(Bup, Blow);
-
-            set_to_atmosphere(rho_abs_min, poly_K, gamma, sqrtg, Bsq, gf_prims,
-                              gf_cons, p);
-          };
-          */
           saved_rho(p.I) = rho(p.I);
           saved_velx(p.I) = velx(p.I);
           saved_vely(p.I) = vely(p.I);

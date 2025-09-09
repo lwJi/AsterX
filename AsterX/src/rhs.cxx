@@ -234,15 +234,17 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
         }
 
         case vector_potential_gauge_t::generalized_lorentz: {
+          const CCTK_REAL alp_v = calc_avg_c2v(alp, p);
+          const vec<CCTK_REAL, 3> betas_v(
+              [&](int i) ARITH_INLINE { return calc_avg_c2v(gf_beta(i), p); });
           CCTK_REAL dF = 0.0;
           for (int i = 0; i < dim; i++) {
             /* diFi on vertices (should be v2v but c2c works too) */
             dF += calc_fd2_e2v(gf_Fstag(i), p, i) -
-                  (gf_beta(i)(p.I) < 0
-                       ? calc_fd2_v2v_oneside(gf_Fbeta(i), p, i, -1)
-                       : calc_fd2_v2v_oneside(gf_Fbeta(i), p, i, 1));
+                  (betas_v(i) < 0 ? calc_fd2_v2v_oneside(gf_Fbeta(i), p, i, -1)
+                                  : calc_fd2_v2v_oneside(gf_Fbeta(i), p, i, 1));
           }
-          Psi_rhs(p.I) = -dF - lorenz_damp_fac * alp(p.I) * Psi(p.I);
+          Psi_rhs(p.I) = -dF - lorenz_damp_fac * alp_v * Psi(p.I);
           break;
         }
 

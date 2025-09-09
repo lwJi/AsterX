@@ -23,10 +23,8 @@ void CheckPrims(CCTK_ARGUMENTS, EOSIDType *eos_1p, EOSType *eos_3p) {
   grid.loop_all_device<1, 1, 1>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        // Interpolate metric terms from vertices to center
-        const smat<CCTK_REAL, 3> g{calc_avg_v2c(gxx, p), calc_avg_v2c(gxy, p),
-                                   calc_avg_v2c(gxz, p), calc_avg_v2c(gyy, p),
-                                   calc_avg_v2c(gyz, p), calc_avg_v2c(gzz, p)};
+        const smat<CCTK_REAL, 3> g{gxx(p.I), gxy(p.I), gxz(p.I),
+                                   gyy(p.I), gyz(p.I), gzz(p.I)};
 
         vec<CCTK_REAL, 3> v_up{velx(p.I), vely(p.I), velz(p.I)};
 

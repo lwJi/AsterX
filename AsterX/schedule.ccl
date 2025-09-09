@@ -281,7 +281,6 @@ if(interpolate_failed_c2p)
   SCHEDULE AsterX_Con2Prim_Interpolate_Failed IN AsterX_RHSGroup BEFORE AsterX_Fluxes
   {
     LANG: C
-    READS: ADMBaseX::metric(interior)
     READS: con2prim_flag(interior)
     READS: HydroBaseX::rho(interior) HydroBaseX::vel(interior) HydroBaseX::eps(interior) HydroBaseX::press(interior) HydroBaseX::Bvec(interior)
     READS: saved_prims(interior)

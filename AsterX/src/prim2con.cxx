@@ -17,10 +17,8 @@ extern "C" void AsterX_Prim2Con_Initial(CCTK_ARGUMENTS) {
   grid.loop_int_device<1, 1, 1>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        // Interpolate metric terms from vertices to center
-        const smat<CCTK_REAL, 3> g{calc_avg_v2c(gxx, p), calc_avg_v2c(gxy, p),
-                                   calc_avg_v2c(gxz, p), calc_avg_v2c(gyy, p),
-                                   calc_avg_v2c(gyz, p), calc_avg_v2c(gzz, p)};
+        const smat<CCTK_REAL, 3> g{gxx(p.I), gxy(p.I), gxz(p.I),
+                                   gyy(p.I), gyz(p.I), gzz(p.I)};
 
         prim pv;
         pv.rho = rho(p.I);

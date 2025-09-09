@@ -8,10 +8,6 @@
 
 #include "aster_utils.hxx"
 
-struct metric {
-  CCTK_REAL gxx, gxy, gxz, gyy, gyz, gzz;
-};
-
 namespace AsterX {
 using namespace Loop;
 using namespace Arith;
@@ -91,21 +87,11 @@ extern "C" void AsterX_ComputeBFromdB(CCTK_ARGUMENTS) {
   grid.loop_all_device<1, 1, 1>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        /* Interpolate metric terms from vertices to center */
-        metric g;
-        g.gxx = calc_avg_v2c(gxx, p);
-        g.gxy = calc_avg_v2c(gxy, p);
-        g.gxz = calc_avg_v2c(gxz, p);
-        g.gyy = calc_avg_v2c(gyy, p);
-        g.gyz = calc_avg_v2c(gyz, p);
-        g.gzz = calc_avg_v2c(gzz, p);
-
         /* Determinant of spatial metric */
-        const smat<CCTK_REAL, 3> gmat{g.gxx, g.gxy, g.gxz, g.gyy, g.gyz, g.gzz};
+        const smat<CCTK_REAL, 3> gmat{gxx(p.I), gxy(p.I), gxz(p.I),
+                                      gyy(p.I), gyz(p.I), gzz(p.I)};
         const CCTK_REAL sqrt_detg = sqrt(calc_det(gmat));
 
-        /* Second order interpolation of staggered B components to cell center
-         */
         Bvecx(p.I) = dBx(p.I) / sqrt_detg;
         Bvecy(p.I) = dBy(p.I) / sqrt_detg;
         Bvecz(p.I) = dBz(p.I) / sqrt_detg;
