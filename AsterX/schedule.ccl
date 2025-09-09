@@ -120,6 +120,7 @@ SCHEDULE AsterX_FluxAuxZero_Initial IN AsterX_TouchNonEvolVarsGroup
   # Suppose to be constructed fully in AsterX_CalcAuxTermsForAvecPsiRHS #
   #######################################################################
   WRITES: Aux_in_RHSof_A_Psi(everywhere)
+  WRITES: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
  
   ####################################################
   # Suppose to be constructed fully in AsterX_Fluxes #

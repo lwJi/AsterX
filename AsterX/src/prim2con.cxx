@@ -76,6 +76,21 @@ extern "C" void AsterX_FluxAuxZero_Initial(CCTK_ARGUMENTS) {
                                       G(p.I) = 0.0;
                                     });
 
+  grid.loop_all_device<1, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const PointDesc &p)
+          CCTK_ATTRIBUTE_ALWAYS_INLINE { Fx_stag(p.I) = 0.0; });
+
+  grid.loop_all_device<0, 1, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const PointDesc &p)
+          CCTK_ATTRIBUTE_ALWAYS_INLINE { Fy_stag(p.I) = 0.0; });
+
+  grid.loop_all_device<0, 0, 1>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const PointDesc &p)
+          CCTK_ATTRIBUTE_ALWAYS_INLINE { Fz_stag(p.I) = 0.0; });
+
 #if 0
   /* Initilaize Flux to 0.0 */
   grid.loop_all_device<0, 1, 1>(grid.nghostzones,
