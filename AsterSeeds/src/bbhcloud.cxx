@@ -6,8 +6,8 @@
 
 #include <cmath>
 
-#include "setup_eos.hxx"
 #include "seeds_utils.hxx"
+#include "setup_eos.hxx"
 
 namespace AsterSeeds {
 using namespace std;
@@ -93,7 +93,7 @@ extern "C" void BBHCloud_Initialize(CCTK_ARGUMENTS) {
           vely(p.I) = vy_0 * exp(-pow(p.z, 2) / disk_width);
           velz(p.I) = vz_0 * exp(-pow(p.z, 2) / disk_width);
 
-  	  // computing gamma - 1, if polytropic EOS is to be used
+          // computing gamma - 1, if polytropic EOS is to be used
           const CCTK_REAL gm1 = eos_1p_poly->gm1_from_valid_rho(rho(p.I));
 
           press(p.I) = isentropic ? eos_1p_poly->p_from_valid_gm1(gm1)
