@@ -563,6 +563,9 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
     // dummy vars
     CCTK_REAL Ex, Ey, Ez;
 
+    vec<CCTK_REAL, 3> v_low_final = calc_contraction(glo, pv.vel);
+    wlor = calc_wlorentz(v_low_final, pv.vel);
+
     // Write back pv
     pv.scatter(rho(p.I), eps(p.I), Ye(p.I), press(p.I), temperature(p.I),
                entropy(p.I), velx(p.I), vely(p.I), velz(p.I), wlor, Bvecx(p.I),
