@@ -21,14 +21,23 @@ using namespace Loop;
 using namespace Arith;
 
 // FD2: vertex centered input, vertex centered output, oneside stencil
-template <typename T>
+template <int Sign, typename T>
 CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline T
 calc_fd2_v2v_oneside(const GF3D2<const T> &gf, const PointDesc &p,
-                     const int dir, const int sign) {
-  return -sign *
-         (gf(p.I + 2 * sign * p.DI[dir]) - 4.0 * gf(p.I + sign * p.DI[dir]) +
-          3.0 * gf(p.I)) *
-         (0.5 / p.DX[dir]);
+                     const int dir) {
+  static_assert(Sign == +1 || Sign == -1, "Sign must be +1 or -1");
+  constexpr int s = Sign;
+
+  const auto i0 = p.I;
+  const auto i1 = i0 + s * p.DI[dir];
+  const auto i2 = i0 + 2 * s * p.DI[dir];
+
+  const T f0 = gf(i0);
+  const T f1 = gf(i1);
+  const T f2 = gf(i2);
+
+  const T num = T(s) * (T(-3) * f0 + T(4) * f1 - f2);
+  return num * (T(0.5) / p.DX[dir]);
 }
 
 // FD2: vertex centered input, edge centered output
