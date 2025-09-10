@@ -235,8 +235,9 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
 
         case vector_potential_gauge_t::generalized_lorentz: {
           const CCTK_REAL alp_v = calc_avg_c2v<2>(alp, p);
-          const vec<CCTK_REAL, 3> betas_v(
-              [&](int i) ARITH_INLINE { return calc_avg_c2v<2>(gf_beta(i), p); });
+          const vec<CCTK_REAL, 3> betas_v([&](int i) ARITH_INLINE {
+            return calc_avg_c2v<2>(gf_beta(i), p);
+          });
           CCTK_REAL dF = 0.0;
           for (int i = 0; i < dim; i++) {
             /* diFi on vertices (should be v2v but c2c works too) */
