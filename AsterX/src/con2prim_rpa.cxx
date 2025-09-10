@@ -78,15 +78,15 @@ extern "C" void AsterX_Con2Prim(CCTK_ARGUMENTS) {
                        max_iter);
 
     /* Get covariant metric */
-    const smat<CCTK_REAL, 3> glo(
-        [&](int i, int j) ARITH_INLINE { return calc_avg_v2c(gf_g(i, j), p); });
+    const smat<CCTK_REAL, 3> glo([&](int i, int j)
+                                     ARITH_INLINE { return gf_g(i, j)(p.I); });
 
     sm_metric3 g(sm_symt3l(glo(0, 0), glo(0, 1), glo(1, 1), glo(0, 2),
                            glo(1, 2), glo(2, 2)));
 
     /* Get covariant metric used for BH interior fixes */
-    const smat<CCTK_REAL, 3> glow(
-        [&](int i, int j) ARITH_INLINE { return calc_avg_v2c(gf_g(i, j), p); });
+    const smat<CCTK_REAL, 3> glow([&](int i, int j)
+                                      ARITH_INLINE { return gf_g(i, j)(p.I); });
 
     /* Calculate inverse of 3-metric */
     const CCTK_REAL spatial_detg = calc_det(glo);
@@ -351,21 +351,6 @@ extern "C" void AsterX_Con2Prim_Interpolate_Failed(CCTK_ARGUMENTS) {
           /* reset flag */
           con2prim_flag(p.I) = 1;
 
-          // set to atmos
-          /*
-          if (rho(p.I) <= rho_abs_min * (1 + atmo_tol))
-          {
-            const smat<CCTK_REAL, 3> g3_avg([&](int i, int j) ARITH_INLINE
-                                            { return calc_avg_v2c(gf_g(i, j),
-          p); }); const CCTK_REAL sqrtg = sqrt(calc_det(g3_avg)); const
-          vec<CCTK_REAL, 3> Bup{Bvecx(p.I), Bvecy(p.I), Bvecz(p.I)}; const
-          vec<CCTK_REAL, 3> Blow = calc_contraction(g3_avg, Bup); const
-          CCTK_REAL Bsq = calc_contraction(Bup, Blow);
-
-            set_to_atmosphere(rho_abs_min, poly_K, gamma, sqrtg, Bsq, gf_prims,
-                              gf_cons, p);
-          };
-          */
           saved_rho(p.I) = rho(p.I);
           saved_velx(p.I) = velx(p.I);
           saved_vely(p.I) = vely(p.I);
