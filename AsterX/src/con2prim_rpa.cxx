@@ -8,11 +8,11 @@
 
 #include "aster_utils.hxx"
 
-#include "reprimand/eos_thermal.h" // The EOS framework
-#include "reprimand/eos_idealgas.h"
-#include "reprimand/eos_barotropic.h"
-#include "reprimand/eos_barotr_poly.h"
 #include "reprimand/con2prim_imhd.h" // The con2prim framework
+#include "reprimand/eos_barotr_poly.h"
+#include "reprimand/eos_barotropic.h"
+#include "reprimand/eos_idealgas.h"
+#include "reprimand/eos_thermal.h" // The EOS framework
 
 namespace AsterX {
 using namespace std;
