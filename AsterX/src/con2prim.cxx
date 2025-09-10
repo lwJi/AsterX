@@ -170,7 +170,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
                                      ARITH_INLINE { return gf_g(i, j)(p.I); });
 
     /* Get mask */
-    CCTK_REAL mask_local = use_mask ? calc_avg_v2c(aster_mask_vc, p) : 1.0;
+    CCTK_REAL mask_local = use_mask ? aster_mask_cc(p.I) : 1.0;
 
     /* Calculate inverse of 3-metric */
     const CCTK_REAL spatial_detg = calc_det(glo);
@@ -240,7 +240,6 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
     if (alp_avg < alp_thresh) {
       mask_local = 0.0;
     }
-    aster_mask_cc(p.I) = mask_local;
 
     if (excise) {
 
@@ -594,7 +593,6 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
   cctk_grid.loop_bnd_device<1, 1, 1>(grid.nghostzones,
                                      [=] CCTK_DEVICE(const PointDesc &p)
                                          CCTK_ATTRIBUTE_ALWAYS_INLINE {
-                                           aster_mask_cc(p.I) = 0;
                                            con2prim_flag(p.I) = 0;
 
                                            zvec_x(p.I) = 0;
