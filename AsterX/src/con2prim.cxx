@@ -258,9 +258,11 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
     // Limit conservatives before calling C2P
     c2p_Noble.cons_floors_and_ceilings(eos_3p, cv, glo, tauFluid_atm);
 
+#if 0
     // DEBUG
     const cons_vars cv_check = cv;
     // DEBUG
+#endif
 
     // ----- ----- C2P ----- -----
 
@@ -298,6 +300,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
           printf("Calling the back up C2P.. \n");
         }
 
+#if 0
         // DEBUG
 
         if (cv.dens != dens(p.I) || cv.mom(0) != cv_check.mom(0) ||
@@ -333,6 +336,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
         }
 
         // DEBUG
+#endif
 
         // Calling the second C2P
         switch (c2p_sec) {
@@ -399,6 +403,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
                      Avec_x(p.I), Avec_y(p.I), Avec_z(p.I));
             }
 
+#if 0
             // DEBUG
 
             if (cv.dens != dens(p.I) || cv.mom(0) != cv_check.mom(0) ||
@@ -434,6 +439,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
             }
 
             // DEBUG
+#endif
 
             if (mask_local != 1.0) {
               // Failure inside mask
@@ -482,6 +488,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
                 Avec_x(p.I), Avec_y(p.I), Avec_z(p.I));
           }
 
+#if 0
           // DEBUG
 
           if (cv.dens != dens(p.I) || cv.mom(0) != cv_check.mom(0) ||
@@ -517,6 +524,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
           }
 
           // DEBUG
+#endif
 
           if (mask_local != 1.0) {
             // Failure inside mask
