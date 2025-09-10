@@ -52,9 +52,8 @@ extern "C" void BBHCloud_Initialize(CCTK_ARGUMENTS) {
       grid.nghostzones,
       [=] CCTK_HOST(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         // Metric
-        const smat<CCTK_REAL, 3> glo([&](int i, int j) ARITH_INLINE {
-          return calc_avg_v2c(gf_g(i, j), p);
-        });
+        const smat<CCTK_REAL, 3> glo(
+            [&](int i, int j) ARITH_INLINE { return gf_g(i, j)(p.I); });
 
         // Coordinate transformation Spherical -> Cartesian
         CCTK_REAL rr = max(sqrt(p.x * p.x + p.y * p.y + p.z * p.z), 1.0e-14);
