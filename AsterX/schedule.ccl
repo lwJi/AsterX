@@ -4,7 +4,7 @@ STORAGE: dens mom tau DEnt DYe dB Psi HydroBaseX::Bvec dBx_stag dBy_stag dBz_sta
 STORAGE: flux_x flux_y flux_z
 STORAGE: densrhs momrhs taurhs DEntrhs Avec_x_rhs Avec_y_rhs Avec_z_rhs Psi_rhs
 STORAGE: ADMBaseX::metric ADMBaseX::lapse ADMBaseX::shift ADMBaseX::curv
-STORAGE: Aux_in_RHSof_A_Psi Fx_stag Fy_stag Fz_stag
+STORAGE: Aux_in_RHSof_A_Psi G_cc Fx_stag Fy_stag Fz_stag
 STORAGE: TmunuBaseX::eTtt TmunuBaseX::eTti TmunuBaseX::eTij
 
 
@@ -231,6 +231,16 @@ SCHEDULE AsterX_ApplyOuterBCOnFluxes IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFO
 } "Apply CarpetX boundary conditions on flux variables"
 
 if (CCTK_EQUALS(vector_potential_gauge, "generalized Lorentz")) {
+  SCHEDULE AsterX_CellCenteredG IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFORE AsterX_CalcAuxTermsForAvecPsiRHS
+  {
+    LANG: C
+    READS: ADMBaseX::metric(everywhere)
+    READS: ADMBaseX::lapse(everywhere)
+    READS: ADMBaseX::shift(everywhere)
+    READS: Avec_x(everywhere) Avec_y(everywhere) Avec_z(everywhere) Psi(everywhere)
+    WRITES: G_cc(everywhere)
+  } "Calculate Cell Centered G"
+
   SCHEDULE AsterX_CalcAuxTermsForAvecPsiRHS IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFORE AsterX_SourceTerms
   {
     LANG: C
@@ -239,6 +249,7 @@ if (CCTK_EQUALS(vector_potential_gauge, "generalized Lorentz")) {
     READS: ADMBaseX::shift(everywhere)
     READS: Avec_x(everywhere) Avec_y(everywhere) Avec_z(everywhere) Psi(everywhere)
     READS: Aux_in_RHSof_A_Psi(everywhere)
+    READS: G_cc(everywhere)
     READS: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
     WRITES: Aux_in_RHSof_A_Psi(everywhere)
     WRITES: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
