@@ -55,7 +55,7 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
   const vec<GF3D2<const CCTK_REAL>, dim> gf_vels{velx, vely, velz};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_zvec{zvec_x, zvec_y, zvec_z};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_svec{svec_x, svec_y, svec_z};
-  const vec<GF3D2<const CCTK_REAL>, dim> gf_Bvecs{Bvecx, Bvecy, Bvecz};
+  const vec<GF3D2<const CCTK_REAL>, dim> gf_dBs{dBx, dBy, dBz};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_dBstags{dBx_stag, dBy_stag,
                                                     dBz_stag};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
@@ -363,15 +363,15 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
 
     // Lambda to assign the reconstructed values
     auto assign_reconstructed = [&](int d) {
-      auto tmp = reconstruct_pt(gf_Bvecs(d), p, false, false);
-      Bs_rc(d)(0) = tmp[0];
-      Bs_rc(d)(1) = tmp[1];
+      auto tmp = reconstruct_pt(gf_dBs(d), p, false, false);
+      Bs_rc(d)(0) = tmp[0] / sqrtg;
+      Bs_rc(d)(1) = tmp[1] / sqrtg;
 
       // Lower-order
       if (useLO) {
-        tmp = reconstruct_loworder(gf_Bvecs(d), p, false, false);
-        Bs_rc(d)(0) = tmp[0];
-        Bs_rc(d)(1) = tmp[1];
+        tmp = reconstruct_loworder(gf_dBs(d), p, false, false);
+        Bs_rc(d)(0) = tmp[0] / sqrtg;
+        Bs_rc(d)(1) = tmp[1] / sqrtg;
       }
       // End lower-order
     };
