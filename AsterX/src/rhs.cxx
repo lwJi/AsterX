@@ -37,6 +37,8 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
   else
     CCTK_ERROR("Unknown value for parameter \"reconstruction_method\"");
 
+  reconstruction_t reconstruction_LO = reconstruction_t::minmod;
+
   // reconstruction parameters struct
   reconstruct_params_t reconstruct_params;
 
@@ -136,15 +138,15 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
       });
 
       const vec<vec<CCTK_REAL, 2>, 3> vtildes_one_rc([&](int m) ARITH_INLINE {
-        return vec<CCTK_REAL, 2>{reconstruct(vtildes_one(m), p, reconstruction,
-                                             k, false, false, press, gf_vels(k),
-                                             reconstruct_params)};
+        return vec<CCTK_REAL, 2>{
+            reconstruct(vtildes_one(m), p, reconstruction_LO, k, false, false,
+                        press, gf_vels(k), reconstruct_params)};
       });
 
       const vec<vec<CCTK_REAL, 2>, 3> vtildes_two_rc([&](int m) ARITH_INLINE {
-        return vec<CCTK_REAL, 2>{reconstruct(vtildes_two(m), p, reconstruction,
-                                             j, false, false, press, gf_vels(j),
-                                             reconstruct_params)};
+        return vec<CCTK_REAL, 2>{
+            reconstruct(vtildes_two(m), p, reconstruction_LO, j, false, false,
+                        press, gf_vels(j), reconstruct_params)};
       });
 
       // i=dir, j=dir1, k=dir2
