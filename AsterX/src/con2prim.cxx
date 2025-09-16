@@ -244,7 +244,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
     if (excise) {
 
       if (mask_local != 1.0) {
-        c2p_Noble.bh_interior<EOSType, false>(eos_3p, pv_seeds, cv, glo);
+        c2p_Noble.bh_interior<EOSType, true>(eos_3p, pv_seeds, cv, glo);
         pv = pv_seeds;
         call_c2p = false;
       }
@@ -443,7 +443,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
 
             if (mask_local != 1.0) {
               // Failure inside mask
-              c2p_Noble.bh_interior<EOSType, false>(eos_3p, pv_seeds, cv, glo);
+              c2p_Noble.bh_interior<EOSType, true>(eos_3p, pv_seeds, cv, glo);
               pv = pv_seeds;
             } else {
               // Failure outside, set to atmo
@@ -528,7 +528,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
 
           if (mask_local != 1.0) {
             // Failure inside mask
-            c2p_Noble.bh_interior<EOSType, false>(eos_3p, pv_seeds, cv, glo);
+            c2p_Noble.bh_interior<EOSType, true>(eos_3p, pv_seeds, cv, glo);
             pv = pv_seeds;
           } else {
             // Failure outside, set to atmo
