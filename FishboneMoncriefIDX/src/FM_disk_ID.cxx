@@ -285,8 +285,8 @@ extern "C" void FishboneMoncrief_Set_A(CCTK_ARGUMENTS) {
         CCTK_REAL ytilde =
             wrt_rho_max ? ycoord - r_at_max_density * sinphi : ycoord;
 
-        CCTK_REAL pressL_stag = calc_avg_c2e(press, p, 0);
-        CCTK_REAL rhoL_stag = calc_avg_c2e(rho, p, 0);
+        CCTK_REAL pressL_stag = calc_avg_c2e<0>(press, p);
+        CCTK_REAL rhoL_stag = calc_avg_c2e<0>(rho, p);
 
         CCTK_REAL AxL = 0.;
         CCTK_REAL AyL = 0.;
@@ -314,8 +314,8 @@ extern "C" void FishboneMoncrief_Set_A(CCTK_ARGUMENTS) {
         CCTK_REAL ytilde =
             wrt_rho_max ? ycoord - r_at_max_density * sinphi : ycoord;
 
-        CCTK_REAL pressL_stag = calc_avg_c2e(press, p, 1);
-        CCTK_REAL rhoL_stag = calc_avg_c2e(rho, p, 0);
+        CCTK_REAL pressL_stag = calc_avg_c2e<1>(press, p);
+        CCTK_REAL rhoL_stag = calc_avg_c2e<1>(rho, p);
 
         CCTK_REAL AxL = 0.;
         CCTK_REAL AyL = 0.;
@@ -343,8 +343,8 @@ extern "C" void FishboneMoncrief_Set_A(CCTK_ARGUMENTS) {
         CCTK_REAL ytilde =
             wrt_rho_max ? ycoord - r_at_max_density * sinphi : ycoord;
 
-        CCTK_REAL pressL_stag = calc_avg_c2e(press, p, 2);
-        CCTK_REAL rhoL_stag = calc_avg_c2e(rho, p, 0);
+        CCTK_REAL pressL_stag = calc_avg_c2e<2>(press, p);
+        CCTK_REAL rhoL_stag = calc_avg_c2e<2>(rho, p);
 
         CCTK_REAL AxL = 0.;
         CCTK_REAL AyL = 0.;

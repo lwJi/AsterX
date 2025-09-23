@@ -242,11 +242,11 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
      * computed from reconstructed variables */
 
     /* Interpolate metric components from vertices to faces */
-    const CCTK_REAL alp_avg = calc_avg_v2f(alp, p, dir);
+    const CCTK_REAL alp_avg = calc_avg_v2f<dir>(alp, p);
     const vec<CCTK_REAL, 3> betas_avg(
-        [&](int i) ARITH_INLINE { return calc_avg_v2f(gf_beta(i), p, dir); });
+        [&](int i) ARITH_INLINE { return calc_avg_v2f<dir>(gf_beta(i), p); });
     const smat<CCTK_REAL, 3> g_avg([&](int i, int j) ARITH_INLINE {
-      return calc_avg_v2f(gf_g(i, j), p, dir);
+      return calc_avg_v2f<dir>(gf_g(i, j), p);
     });
 
     /* determinant of spatial metric */
@@ -829,9 +829,9 @@ template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
   grid.loop_mix_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        const CCTK_REAL alp_e = calc_avg_v2e(alp, p, dir_i);
+        const CCTK_REAL alp_e = calc_avg_v2e<dir_i>(alp, p);
         const smat<CCTK_REAL, 3> g_e([&](int i, int j) ARITH_INLINE {
-          return calc_avg_v2e(gf_g(i, j), p, dir_i);
+          return calc_avg_v2e<dir_i>(gf_g(i, j), p);
         });
         const CCTK_REAL detg_e = calc_det(g_e);
         const CCTK_REAL sqrtg_e = sqrt(detg_e);
@@ -839,8 +839,8 @@ template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
 
         vec<CCTK_REAL, 3> A_e;
         A_e(dir_i) = gf_Avecs(dir_i)(p.I);
-        A_e(dir_j) = calc_avg_e2e<dir_i>(gf_Avecs(dir_j), p, dir_j);
-        A_e(dir_k) = calc_avg_e2e<dir_i>(gf_Avecs(dir_k), p, dir_k);
+        A_e(dir_j) = calc_avg_e2e<dir_i, dir_j>(gf_Avecs(dir_j), p);
+        A_e(dir_k) = calc_avg_e2e<dir_i, dir_k>(gf_Avecs(dir_k), p);
 
         const vec<CCTK_REAL, 3> Aup_e = calc_contraction(ug_e, A_e);
 
