@@ -41,9 +41,9 @@ calc_fd2_v2v_oneside(const GF3D2<const T> &gf, const PointDesc &p,
 }
 
 // FD2: vertex centered input, edge centered output
-template <typename T>
+template <int dir, typename T>
 CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline T
-calc_fd2_v2e(const GF3D2<const T> &gf, const PointDesc &p, const int dir) {
+calc_fd2_v2e(const GF3D2<const T> &gf, const PointDesc &p) {
   return (gf(p.I + p.DI[dir]) - gf(p.I)) / p.DX[dir];
 }
 

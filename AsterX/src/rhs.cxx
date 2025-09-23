@@ -161,7 +161,7 @@ void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge) {
         }
 
         case vector_potential_gauge_t::generalized_lorentz: {
-          gf_Avec_rhs(dir)(p.I) = -E - calc_fd2_v2e(G, p, dir);
+          gf_Avec_rhs(dir)(p.I) = -E - calc_fd2_v2e<dir>(G, p);
           break;
         }
 
