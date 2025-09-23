@@ -826,7 +826,7 @@ template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Avecs{Avec_x, Avec_y, Avec_z};
   const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
 
-  grid.loop_allm1_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
+  grid.loop_mix_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         const CCTK_REAL alp_e = calc_avg_v2e(alp, p, dir_i);
@@ -853,31 +853,24 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
   DECLARE_CCTK_PARAMETERS;
 
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Avecs{Avec_x, Avec_y, Avec_z};
+  const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
+  const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
 
-  grid.loop_allm1_device<0, 0, 0>(
+  grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        /* interpolate A to vertices */
         const vec<CCTK_REAL, 3> A_vert([&](int i) ARITH_INLINE {
           return calc_avg_e2v(gf_Avecs(i), p, i);
         });
-        const smat<CCTK_REAL, 3> g{gxx(p.I), gxy(p.I), gxz(p.I),
-                                   gyy(p.I), gyz(p.I), gzz(p.I)};
-        const vec<CCTK_REAL, 3> betas{betax(p.I), betay(p.I), betaz(p.I)};
+        const smat<CCTK_REAL, 3> g(
+            [&](int i, int j) ARITH_INLINE { return gf_g(i, j)(p.I); });
+        const vec<CCTK_REAL, 3> betas(
+            [&](int i) ARITH_INLINE { return gf_beta(i)(p.I); });
         const CCTK_REAL detg = calc_det(g);
         const CCTK_REAL sqrtg = sqrt(detg);
-        const smat<CCTK_REAL, 3> ug = calc_inv(g, detg);
-        const vec<CCTK_REAL, 3> Aup = calc_contraction(ug, A_vert);
 
-        // Fx(p.I) = alp(p.I) * sqrtg * Aup(0);
-        // Fy(p.I) = alp(p.I) * sqrtg * Aup(1);
-        // Fz(p.I) = alp(p.I) * sqrtg * Aup(2);
         G(p.I) = alp(p.I) * Psi(p.I) / sqrtg - calc_contraction(betas, A_vert);
       });
-
-  CalcFstag<0>(CCTK_PASS_CTOC);
-  CalcFstag<1>(CCTK_PASS_CTOC);
-  CalcFstag<2>(CCTK_PASS_CTOC);
 
   grid.loop_all_device<0, 0, 0>(grid.nghostzones,
                                 [=] CCTK_DEVICE(const PointDesc &p)
@@ -886,6 +879,10 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
                                       Fbetay(p.I) = betay(p.I) * Psi(p.I);
                                       Fbetaz(p.I) = betaz(p.I) * Psi(p.I);
                                     });
+
+  CalcFstag<0>(CCTK_PASS_CTOC);
+  CalcFstag<1>(CCTK_PASS_CTOC);
+  CalcFstag<2>(CCTK_PASS_CTOC);
 }
 
 } // namespace AsterX
