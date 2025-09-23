@@ -120,6 +120,7 @@ SCHEDULE AsterX_FluxAuxZero_Initial IN AsterX_TouchNonEvolVarsGroup
   # Suppose to be constructed fully in AsterX_CalcAuxTermsForAvecPsiRHS #
   #######################################################################
   WRITES: Aux_in_RHSof_A_Psi(everywhere)
+  WRITES: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
  
   ####################################################
   # Suppose to be constructed fully in AsterX_Fluxes #
@@ -238,6 +239,7 @@ if (CCTK_EQUALS(vector_potential_gauge, "generalized Lorentz")) {
     READS: ADMBaseX::shift(everywhere)
     READS: Avec_x(everywhere) Avec_y(everywhere) Avec_z(everywhere) Psi(everywhere)
     READS: Aux_in_RHSof_A_Psi(everywhere)
+    READS: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
     WRITES: Aux_in_RHSof_A_Psi(everywhere)
     WRITES: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
   } "Calculate the auxiliary terms for the rhs of Avec and Psi"
