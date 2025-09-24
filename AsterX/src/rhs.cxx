@@ -219,6 +219,7 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
         taurhs(p.I) += calcupdate_hydro(gf_ftau, p);
         DYe_rhs(p.I) += calcupdate_hydro(gf_fDYe, p);
 
+#ifdef CCTK_DEBUG
         if (isnan(densrhs(p.I))) {
           printf("calcupdate = %f, ", calcupdate_hydro(gf_fdens, p));
           printf("densrhs = %f, gf_fdens = %f, %f, %f, %f, %f, %f \n",
@@ -227,6 +228,7 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
                  gf_fdens(1)(p.I + p.DI[1]), gf_fdens(2)(p.I + p.DI[2]));
         }
         assert(!isnan(densrhs(p.I)));
+#endif
       });
 
   CalcRHSofAvec<0>(CCTK_PASS_CTOC, gauge);
