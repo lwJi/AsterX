@@ -36,9 +36,35 @@ enum class rec_var_t { v_vec, z_vec, s_vec };
 // complex because it has to handle any direction, but as reward,
 // there is only one function, not three.
 template <int dir, typename EOSType>
-void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
+void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, rec_var_t rec_var,
+              reconstruction_t reconstruction,
+              reconstruction_t reconstruction_LO,
+              reconstruct_params_t reconstruct_params, flux_t fluxtype) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_Fluxes;
   DECLARE_CCTK_PARAMETERS;
+
+  switch (reconstruction) {
+  case reconstruction_t::Godunov:
+    assert(cctk_nghostzones[dir] >= 1);
+    break;
+  case reconstruction_t::minmod:
+    assert(cctk_nghostzones[dir] >= 2);
+    break;
+  case reconstruction_t::monocentral:
+    assert(cctk_nghostzones[dir] >= 2);
+    break;
+  case reconstruction_t::ppm:
+    assert(cctk_nghostzones[dir] >= 3);
+    break;
+  case reconstruction_t::eppm:
+    assert(cctk_nghostzones[dir] >= 3);
+    break;
+  case reconstruction_t::wenoz:
+    assert(cctk_nghostzones[dir] >= 3);
+  case reconstruction_t::mp5:
+    assert(cctk_nghostzones[dir] >= 3);
+    break;
+  }
 
   /* grid functions for fluxes */
   const vec<GF3D2<CCTK_REAL>, dim> fluxdenss{fxdens, fydens, fzdens};
@@ -69,100 +95,6 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p) {
   const vec<GF3D2<CCTK_REAL>, dim> amin{amin_xface, amin_yface, amin_zface};
 
   static_assert(dir >= 0 && dir < 3, "");
-
-  rec_var_t rec_var;
-  if (CCTK_EQUALS(recon_type, "v_vec")) {
-    rec_var = rec_var_t::v_vec;
-  } else if (CCTK_EQUALS(recon_type, "z_vec")) {
-    rec_var = rec_var_t::z_vec;
-  } else if (CCTK_EQUALS(recon_type, "s_vec")) {
-    rec_var = rec_var_t::s_vec;
-  } else {
-    CCTK_ERROR("Unknown value for parameter \"recon_type\"");
-  }
-
-  // Primary reconstruction method
-  reconstruction_t reconstruction;
-  if (CCTK_EQUALS(reconstruction_method, "Godunov"))
-    reconstruction = reconstruction_t::Godunov;
-  else if (CCTK_EQUALS(reconstruction_method, "minmod"))
-    reconstruction = reconstruction_t::minmod;
-  else if (CCTK_EQUALS(reconstruction_method, "monocentral"))
-    reconstruction = reconstruction_t::monocentral;
-  else if (CCTK_EQUALS(reconstruction_method, "ppm"))
-    reconstruction = reconstruction_t::ppm;
-  else if (CCTK_EQUALS(reconstruction_method, "eppm"))
-    reconstruction = reconstruction_t::eppm;
-  else if (CCTK_EQUALS(reconstruction_method, "wenoz"))
-    reconstruction = reconstruction_t::wenoz;
-  else if (CCTK_EQUALS(reconstruction_method, "mp5"))
-    reconstruction = reconstruction_t::mp5;
-  else
-    CCTK_ERROR("Unknown value for parameter \"reconstruction_method\"");
-
-  // Lower-order fallback for negative values
-  reconstruction_t reconstruction_LO;
-  if (CCTK_EQUALS(loworder_method, "Godunov"))
-    reconstruction_LO = reconstruction_t::Godunov;
-  else if (CCTK_EQUALS(loworder_method, "minmod"))
-    reconstruction_LO = reconstruction_t::minmod;
-  else if (CCTK_EQUALS(loworder_method, "monocentral"))
-    reconstruction_LO = reconstruction_t::monocentral;
-  else
-    CCTK_ERROR("Unknown value for parameter \"loworder_method\"");
-
-  flux_t fluxtype;
-  if (CCTK_EQUALS(flux_type, "LxF")) {
-    fluxtype = flux_t::LxF;
-  } else if (CCTK_EQUALS(flux_type, "HLLE")) {
-    fluxtype = flux_t::HLLE;
-  } else {
-    CCTK_ERROR("Unknown value for parameter \"flux_type\"");
-  }
-
-  switch (reconstruction) {
-  case reconstruction_t::Godunov:
-    assert(cctk_nghostzones[dir] >= 1);
-    break;
-  case reconstruction_t::minmod:
-    assert(cctk_nghostzones[dir] >= 2);
-    break;
-  case reconstruction_t::monocentral:
-    assert(cctk_nghostzones[dir] >= 2);
-    break;
-  case reconstruction_t::ppm:
-    assert(cctk_nghostzones[dir] >= 3);
-    break;
-  case reconstruction_t::eppm:
-    assert(cctk_nghostzones[dir] >= 3);
-    break;
-  case reconstruction_t::wenoz:
-    assert(cctk_nghostzones[dir] >= 3);
-  case reconstruction_t::mp5:
-    assert(cctk_nghostzones[dir] >= 3);
-    break;
-  }
-
-  // reconstruction parameters struct
-  reconstruct_params_t reconstruct_params;
-
-  // ppm parameters
-  reconstruct_params.ppm_shock_detection = ppm_shock_detection;
-  reconstruct_params.ppm_zone_flattening = ppm_zone_flattening;
-  reconstruct_params.poly_k = poly_k;
-  reconstruct_params.poly_gamma = poly_gamma;
-  reconstruct_params.ppm_eta1 = ppm_eta1;
-  reconstruct_params.ppm_eta2 = ppm_eta2;
-  reconstruct_params.ppm_eps = ppm_eps;
-  reconstruct_params.ppm_eps_shock = ppm_eps_shock;
-  reconstruct_params.ppm_small = ppm_small;
-  reconstruct_params.ppm_omega1 = ppm_omega1;
-  reconstruct_params.ppm_omega2 = ppm_omega2;
-  reconstruct_params.enhanced_ppm_C2 = enhanced_ppm_C2;
-  // wenoz parameters
-  reconstruct_params.weno_eps = weno_eps;
-  // mp5 parameters
-  reconstruct_params.mp5_alpha = mp5_alpha;
 
   const auto reconstruct_pt =
       [=] CCTK_DEVICE(const GF3D2<const CCTK_REAL> &var, const PointDesc &p,
@@ -779,32 +711,112 @@ extern "C" void AsterX_Fluxes(CCTK_ARGUMENTS) {
     CCTK_ERROR("Unknown value for parameter \"evolution_eos\"");
   }
 
+  rec_var_t rec_var;
+  if (CCTK_EQUALS(recon_type, "v_vec")) {
+    rec_var = rec_var_t::v_vec;
+  } else if (CCTK_EQUALS(recon_type, "z_vec")) {
+    rec_var = rec_var_t::z_vec;
+  } else if (CCTK_EQUALS(recon_type, "s_vec")) {
+    rec_var = rec_var_t::s_vec;
+  } else {
+    CCTK_ERROR("Unknown value for parameter \"recon_type\"");
+  }
+
+  // Primary reconstruction method
+  reconstruction_t reconstruction;
+  if (CCTK_EQUALS(reconstruction_method, "Godunov"))
+    reconstruction = reconstruction_t::Godunov;
+  else if (CCTK_EQUALS(reconstruction_method, "minmod"))
+    reconstruction = reconstruction_t::minmod;
+  else if (CCTK_EQUALS(reconstruction_method, "monocentral"))
+    reconstruction = reconstruction_t::monocentral;
+  else if (CCTK_EQUALS(reconstruction_method, "ppm"))
+    reconstruction = reconstruction_t::ppm;
+  else if (CCTK_EQUALS(reconstruction_method, "eppm"))
+    reconstruction = reconstruction_t::eppm;
+  else if (CCTK_EQUALS(reconstruction_method, "wenoz"))
+    reconstruction = reconstruction_t::wenoz;
+  else if (CCTK_EQUALS(reconstruction_method, "mp5"))
+    reconstruction = reconstruction_t::mp5;
+  else
+    CCTK_ERROR("Unknown value for parameter \"reconstruction_method\"");
+
+  // Lower-order fallback for negative values
+  reconstruction_t reconstruction_LO;
+  if (CCTK_EQUALS(loworder_method, "Godunov"))
+    reconstruction_LO = reconstruction_t::Godunov;
+  else if (CCTK_EQUALS(loworder_method, "minmod"))
+    reconstruction_LO = reconstruction_t::minmod;
+  else if (CCTK_EQUALS(loworder_method, "monocentral"))
+    reconstruction_LO = reconstruction_t::monocentral;
+  else
+    CCTK_ERROR("Unknown value for parameter \"loworder_method\"");
+
+  // reconstruction parameters struct
+  reconstruct_params_t reconstruct_params;
+
+  // ppm parameters
+  reconstruct_params.ppm_shock_detection = ppm_shock_detection;
+  reconstruct_params.ppm_zone_flattening = ppm_zone_flattening;
+  reconstruct_params.poly_k = poly_k;
+  reconstruct_params.poly_gamma = poly_gamma;
+  reconstruct_params.ppm_eta1 = ppm_eta1;
+  reconstruct_params.ppm_eta2 = ppm_eta2;
+  reconstruct_params.ppm_eps = ppm_eps;
+  reconstruct_params.ppm_eps_shock = ppm_eps_shock;
+  reconstruct_params.ppm_small = ppm_small;
+  reconstruct_params.ppm_omega1 = ppm_omega1;
+  reconstruct_params.ppm_omega2 = ppm_omega2;
+  reconstruct_params.enhanced_ppm_C2 = enhanced_ppm_C2;
+  // wenoz parameters
+  reconstruct_params.weno_eps = weno_eps;
+  // mp5 parameters
+  reconstruct_params.mp5_alpha = mp5_alpha;
+
+  flux_t fluxtype;
+  if (CCTK_EQUALS(flux_type, "LxF")) {
+    fluxtype = flux_t::LxF;
+  } else if (CCTK_EQUALS(flux_type, "HLLE")) {
+    fluxtype = flux_t::HLLE;
+  } else {
+    CCTK_ERROR("Unknown value for parameter \"flux_type\"");
+  }
+
   switch (eos_3p_type) {
   case eos_3param::IdealGas: {
     // Get local eos object
     auto eos_3p_ig = global_eos_3p_ig;
 
-    CalcFlux<0>(cctkGH, eos_3p_ig);
-    CalcFlux<1>(cctkGH, eos_3p_ig);
-    CalcFlux<2>(cctkGH, eos_3p_ig);
+    CalcFlux<0>(cctkGH, eos_3p_ig, rec_var, reconstruction, reconstruction_LO,
+                reconstruct_params, fluxtype);
+    CalcFlux<1>(cctkGH, eos_3p_ig, rec_var, reconstruction, reconstruction_LO,
+                reconstruct_params, fluxtype);
+    CalcFlux<2>(cctkGH, eos_3p_ig, rec_var, reconstruction, reconstruction_LO,
+                reconstruct_params, fluxtype);
     break;
   }
   case eos_3param::Hybrid: {
     // Get local eos object
     auto eos_3p_hyb = global_eos_3p_hyb;
 
-    CalcFlux<0>(cctkGH, eos_3p_hyb);
-    CalcFlux<1>(cctkGH, eos_3p_hyb);
-    CalcFlux<2>(cctkGH, eos_3p_hyb);
+    CalcFlux<0>(cctkGH, eos_3p_hyb, rec_var, reconstruction, reconstruction_LO,
+                reconstruct_params, fluxtype);
+    CalcFlux<1>(cctkGH, eos_3p_hyb, rec_var, reconstruction, reconstruction_LO,
+                reconstruct_params, fluxtype);
+    CalcFlux<2>(cctkGH, eos_3p_hyb, rec_var, reconstruction, reconstruction_LO,
+                reconstruct_params, fluxtype);
     break;
   }
   case eos_3param::Tabulated: {
     // Get local eos object
     auto eos_3p_tab3d = global_eos_3p_tab3d;
 
-    CalcFlux<0>(cctkGH, eos_3p_tab3d);
-    CalcFlux<1>(cctkGH, eos_3p_tab3d);
-    CalcFlux<2>(cctkGH, eos_3p_tab3d);
+    CalcFlux<0>(cctkGH, eos_3p_tab3d, rec_var, reconstruction,
+                reconstruction_LO, reconstruct_params, fluxtype);
+    CalcFlux<1>(cctkGH, eos_3p_tab3d, rec_var, reconstruction,
+                reconstruction_LO, reconstruct_params, fluxtype);
+    CalcFlux<2>(cctkGH, eos_3p_tab3d, rec_var, reconstruction,
+                reconstruction_LO, reconstruct_params, fluxtype);
     break;
   }
   default:
