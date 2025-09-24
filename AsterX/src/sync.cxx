@@ -80,9 +80,9 @@ extern "C" void AsterX_ApplyOuterBCOnFluxes(CCTK_ARGUMENTS) {
   groups.push_back(CCTK_GroupIndex("AsterX::flux_y"));
   groups.push_back(CCTK_GroupIndex("AsterX::flux_z"));
 
-  groups.push_back(CCTK_GroupIndex("AsterX::vtilde_xface"));
-  groups.push_back(CCTK_GroupIndex("AsterX::vtilde_yface"));
-  groups.push_back(CCTK_GroupIndex("AsterX::vtilde_zface"));
+  groups.push_back(CCTK_GroupIndex("AsterX::vbar_xface"));
+  groups.push_back(CCTK_GroupIndex("AsterX::vbar_yface"));
+  groups.push_back(CCTK_GroupIndex("AsterX::vbar_zface"));
   groups.push_back(CCTK_GroupIndex("AsterX::a_xface"));
   groups.push_back(CCTK_GroupIndex("AsterX::a_yface"));
   groups.push_back(CCTK_GroupIndex("AsterX::a_zface"));

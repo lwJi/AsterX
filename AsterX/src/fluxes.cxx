@@ -90,10 +90,10 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
   const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
 
   /* grid functions for Upwind CT */
-  const vec<GF3D2<CCTK_REAL>, dim> vtildes_one{vtilde_y_xface, vtilde_z_yface,
-                                               vtilde_x_zface};
-  const vec<GF3D2<CCTK_REAL>, dim> vtildes_two{vtilde_z_xface, vtilde_x_yface,
-                                               vtilde_y_zface};
+  const vec<GF3D2<CCTK_REAL>, dim> vbars_one{vbar_y_xface, vbar_z_yface,
+                                             vbar_x_zface};
+  const vec<GF3D2<CCTK_REAL>, dim> vbars_two{vbar_z_xface, vbar_x_yface,
+                                             vbar_y_zface};
   const vec<GF3D2<CCTK_REAL>, dim> amax{amax_xface, amax_yface, amax_zface};
   const vec<GF3D2<CCTK_REAL>, dim> amin{amin_xface, amin_yface, amin_zface};
 
@@ -155,8 +155,8 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
 
         amax(dir)(p.I) = 0;
         amin(dir)(p.I) = 0;
-        vtildes_one(dir)(p.I) = 0;
-        vtildes_two(dir)(p.I) = 0;
+        vbars_one(dir)(p.I) = 0;
+        vbars_two(dir)(p.I) = 0;
       });
 
   grid.loop_mix_device<face_centred[0], face_centred[1],
@@ -666,12 +666,12 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
                                 lambda(0)(2), lambda(0)(3), lambda(1)(0),
                                 lambda(1)(1), lambda(1)(2), lambda(1)(3)}));
 
-    vtildes_one(dir)(p.I) = (amax(dir)(p.I) * vtildes_rc(dir_j)(0) +
-                             amin(dir)(p.I) * vtildes_rc(dir_j)(1)) /
-                            (amax(dir)(p.I) + amin(dir)(p.I));
-    vtildes_two(dir)(p.I) = (amax(dir)(p.I) * vtildes_rc(dir_k)(0) +
-                             amin(dir)(p.I) * vtildes_rc(dir_k)(1)) /
-                            (amax(dir)(p.I) + amin(dir)(p.I));
+    vbars_one(dir)(p.I) = (amax(dir)(p.I) * vtildes_rc(dir_j)(0) +
+                           amin(dir)(p.I) * vtildes_rc(dir_j)(1)) /
+                          (amax(dir)(p.I) + amin(dir)(p.I));
+    vbars_two(dir)(p.I) = (amax(dir)(p.I) * vtildes_rc(dir_k)(0) +
+                           amin(dir)(p.I) * vtildes_rc(dir_k)(1)) /
+                          (amax(dir)(p.I) + amin(dir)(p.I));
 
     /* End code for upwindCT */
   });

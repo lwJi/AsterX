@@ -125,7 +125,7 @@ SCHEDULE AsterX_FluxAuxZero_Initial IN AsterX_TouchNonEvolVarsGroup
   # Suppose to be constructed fully in AsterX_Fluxes #
   ####################################################
   #WRITES: flux_x(everywhere) flux_y(everywhere) flux_z(everywhere)
-  #WRITES: vtilde_xface(everywhere) vtilde_yface(everywhere) vtilde_zface(everywhere)
+  #WRITES: vbar_xface(everywhere) vbar_yface(everywhere) vbar_zface(everywhere)
   #WRITES: a_xface(everywhere) a_yface(everywhere) a_zface(everywhere)
 } "Set Fluxes and Auxiliary variables to zero initially"
 
@@ -219,7 +219,7 @@ SCHEDULE AsterX_Fluxes IN AsterX_RHSGroup
   READS: svec_x(everywhere) svec_y(everywhere) svec_z(everywhere)
   READS: Avec_x(everywhere) Avec_y(everywhere) Avec_z(everywhere) Psi(everywhere)
   WRITES: flux_x(everywhere) flux_y(everywhere) flux_z(everywhere)
-  WRITES: vtilde_xface(everywhere) vtilde_yface(everywhere) vtilde_zface(everywhere)
+  WRITES: vbar_xface(everywhere) vbar_yface(everywhere) vbar_zface(everywhere)
   WRITES: a_xface(everywhere) a_yface(everywhere) a_zface(everywhere)
 } "Calculate the hydro fluxes"
 
@@ -269,7 +269,7 @@ SCHEDULE AsterX_RHS IN AsterX_RHSGroup AFTER AsterX_SourceTerms
   READS: Fbeta(everywhere)
   READS: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
   READS: dBx_stag(everywhere) dBy_stag(everywhere) dBz_stag(everywhere)
-  READS: vtilde_xface(everywhere) vtilde_yface(everywhere) vtilde_zface(everywhere)
+  READS: vbar_xface(everywhere) vbar_yface(everywhere) vbar_zface(everywhere)
   READS: a_xface(everywhere) a_yface(everywhere) a_zface(everywhere)
   WRITES: densrhs(interior) taurhs(interior) momrhs(interior) DEntrhs(interior) DYe_rhs(interior)
   WRITES: Avec_x_rhs(interior) Avec_y_rhs(interior) Avec_z_rhs(interior) Psi_rhs(interior)
