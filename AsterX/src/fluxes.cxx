@@ -135,13 +135,8 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
   constexpr array<int, dim> face_centred = {!(dir == 0), !(dir == 1),
                                             !(dir == 2)};
 
-  // Precompute mapping table once for clarity and efficiency
-  constexpr array<array<int, 3>, 3> dir_arr_table = {{
-      {0, 1, 2}, // dir == 0: x, y, z
-      {1, 2, 0}, // dir == 1: y, z, x
-      {2, 0, 1}  // dir == 2: z, x, y
-  }};
-  constexpr auto dir_arr = dir_arr_table[dir];
+  constexpr int dir_j = (dir == 0) ? 1 : ((dir == 1) ? 2 : 0);
+  constexpr int dir_k = (dir == 0) ? 2 : ((dir == 1) ? 0 : 1);
 
   // initialize to zero
   grid.loop_all_device<face_centred[0], face_centred[1], face_centred[2]>(
@@ -294,22 +289,15 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
 
     // Lambda to assign the reconstructed values
     auto assign_reconstructed = [&](int d) {
-      auto tmp = reconstruct_pt(gf_Bvecs(d), p, false, false);
+      auto tmp = useLO ? reconstruct_loworder(gf_Bvecs(d), p, false, false)
+                       : reconstruct_pt(gf_Bvecs(d), p, false, false);
       Bs_rc(d)(0) = tmp[0];
       Bs_rc(d)(1) = tmp[1];
-
-      // Lower-order
-      if (useLO) {
-        tmp = reconstruct_loworder(gf_Bvecs(d), p, false, false);
-        Bs_rc(d)(0) = tmp[0];
-        Bs_rc(d)(1) = tmp[1];
-      }
-      // End lower-order
     };
 
     // Assign reconstructed values for the two perpendicular directions
-    assign_reconstructed(dir_arr[1]);
-    assign_reconstructed(dir_arr[2]);
+    assign_reconstructed(dir_j);
+    assign_reconstructed(dir_k);
     // End of setting Bs
 
     vec<vec<CCTK_REAL, 2>, 3> vels_rc;
@@ -669,11 +657,6 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
 #endif
 
     /* Begin code for upwindCT */
-    // if dir==0: dir1=1, dir2=2 | dir==1: dir1=2, dir2=0 | dir==2; dir1=0,
-    // dir2=1
-
-    const int dir1 = (dir == 0) ? 1 : ((dir == 1) ? 2 : 0);
-    const int dir2 = (dir == 0) ? 2 : ((dir == 1) ? 0 : 1);
 
     amax(dir)(p.I) = max({CCTK_REAL(0), lambda(0)(0), lambda(0)(1),
                           lambda(0)(2), lambda(0)(3), lambda(1)(0),
@@ -683,11 +666,11 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
                                 lambda(0)(2), lambda(0)(3), lambda(1)(0),
                                 lambda(1)(1), lambda(1)(2), lambda(1)(3)}));
 
-    vtildes_one(dir)(p.I) = (amax(dir)(p.I) * vtildes_rc(dir1)(0) +
-                             amin(dir)(p.I) * vtildes_rc(dir1)(1)) /
+    vtildes_one(dir)(p.I) = (amax(dir)(p.I) * vtildes_rc(dir_j)(0) +
+                             amin(dir)(p.I) * vtildes_rc(dir_j)(1)) /
                             (amax(dir)(p.I) + amin(dir)(p.I));
-    vtildes_two(dir)(p.I) = (amax(dir)(p.I) * vtildes_rc(dir2)(0) +
-                             amin(dir)(p.I) * vtildes_rc(dir2)(1)) /
+    vtildes_two(dir)(p.I) = (amax(dir)(p.I) * vtildes_rc(dir_k)(0) +
+                             amin(dir)(p.I) * vtildes_rc(dir_k)(1)) /
                             (amax(dir)(p.I) + amin(dir)(p.I));
 
     /* End code for upwindCT */
