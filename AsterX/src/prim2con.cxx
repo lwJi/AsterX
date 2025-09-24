@@ -65,16 +65,6 @@ extern "C" void AsterX_FluxAuxZero_Initial(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_FluxAuxZero_Initial;
   DECLARE_CCTK_PARAMETERS;
 
-  /* Auxiliary variables for rhs of Avec and Psi */
-  grid.loop_all_device<0, 0, 0>(grid.nghostzones,
-                                [=] CCTK_DEVICE(const PointDesc &p)
-                                    CCTK_ATTRIBUTE_ALWAYS_INLINE {
-                                      Fbetax(p.I) = 0.0;
-                                      Fbetay(p.I) = 0.0;
-                                      Fbetaz(p.I) = 0.0;
-                                      G(p.I) = 0.0;
-                                    });
-
   grid.loop_all_device<1, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p)

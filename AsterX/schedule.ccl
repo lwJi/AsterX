@@ -4,7 +4,7 @@ STORAGE: dens mom tau DEnt DYe dB Psi HydroBaseX::Bvec dBx_stag dBy_stag dBz_sta
 STORAGE: flux_x flux_y flux_z
 STORAGE: densrhs momrhs taurhs DEntrhs Avec_x_rhs Avec_y_rhs Avec_z_rhs Psi_rhs
 STORAGE: ADMBaseX::metric ADMBaseX::lapse ADMBaseX::shift ADMBaseX::curv
-STORAGE: Aux_in_RHSof_A_Psi Fx_stag Fy_stag Fz_stag
+STORAGE: G Fbeta Fx_stag Fy_stag Fz_stag
 STORAGE: TmunuBaseX::eTtt TmunuBaseX::eTti TmunuBaseX::eTij
 
 
@@ -119,7 +119,6 @@ SCHEDULE AsterX_FluxAuxZero_Initial IN AsterX_TouchNonEvolVarsGroup
   #######################################################################
   # Suppose to be constructed fully in AsterX_CalcAuxTermsForAvecPsiRHS #
   #######################################################################
-  WRITES: Aux_in_RHSof_A_Psi(everywhere)
   WRITES: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
  
   ####################################################
@@ -230,20 +229,18 @@ SCHEDULE AsterX_ApplyOuterBCOnFluxes IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFO
   OPTIONS: global
 } "Apply CarpetX boundary conditions on flux variables"
 
-if (CCTK_EQUALS(vector_potential_gauge, "generalized Lorentz")) {
-  SCHEDULE AsterX_CalcAuxTermsForAvecPsiRHS IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFORE AsterX_SourceTerms
-  {
-    LANG: C
-    READS: ADMBaseX::metric(everywhere)
-    READS: ADMBaseX::lapse(everywhere)
-    READS: ADMBaseX::shift(everywhere)
-    READS: Avec_x(everywhere) Avec_y(everywhere) Avec_z(everywhere) Psi(everywhere)
-    READS: Aux_in_RHSof_A_Psi(everywhere)
-    READS: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
-    WRITES: Aux_in_RHSof_A_Psi(everywhere)
-    WRITES: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
-  } "Calculate the auxiliary terms for the rhs of Avec and Psi"
-}
+SCHEDULE AsterX_CalcAuxTermsForAvecPsiRHS IN AsterX_RHSGroup AFTER AsterX_Fluxes BEFORE AsterX_SourceTerms
+{
+  LANG: C
+  READS: ADMBaseX::metric(everywhere)
+  READS: ADMBaseX::lapse(everywhere)
+  READS: ADMBaseX::shift(everywhere)
+  READS: Avec_x(everywhere) Avec_y(everywhere) Avec_z(everywhere) Psi(everywhere)
+  READS: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
+  WRITES: G(interior)
+  WRITES: Fbeta(everywhere)
+  WRITES: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
+} "Calculate the auxiliary terms for the rhs of Avec and Psi"
 
 SCHEDULE AsterX_SourceTerms IN AsterX_RHSGroup AFTER AsterX_Fluxes
 {
@@ -268,7 +265,9 @@ SCHEDULE AsterX_RHS IN AsterX_RHSGroup AFTER AsterX_SourceTerms
   READS: flux_x(everywhere) flux_y(everywhere) flux_z(everywhere)
   READS: densrhs(interior) taurhs(interior) momrhs(interior) DEntrhs(interior) DYe_rhs(interior)
   READS: Psi(everywhere)
-  READS: Aux_in_RHSof_A_Psi(everywhere) Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
+  READS: G(interior)
+  READS: Fbeta(everywhere)
+  READS: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
   READS: dBx_stag(everywhere) dBy_stag(everywhere) dBz_stag(everywhere)
   READS: vtilde_xface(everywhere) vtilde_yface(everywhere) vtilde_zface(everywhere)
   READS: a_xface(everywhere) a_yface(everywhere) a_zface(everywhere)

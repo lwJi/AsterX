@@ -103,10 +103,12 @@ CCTK_REAL Psi TYPE=gf CENTERING={vvv} TAGS='rhs="Psi_rhs"' "t-component of vecto
 
 CCTK_REAL Psi_rhs TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "t-component of vector potential RHS"
 
-CCTK_REAL Aux_in_RHSof_A_Psi TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"'
+CCTK_REAL Fbeta TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"'
 {
-  Fbetax, Fbetay, Fbetaz, G
-} "Auxiliary vertices variables which appears in the rhs of Avec and Psi"
+  Fbetax, Fbetay, Fbetaz
+} "Auxiliary variables which appears in the rhs of Psi"
+
+CCTK_REAL G TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "Auxiliary variables which appears in the rhs of Avec"
 
 CCTK_REAL Fx_stag TYPE=gf CENTERING={cvv} TAGS='checkpoint="no"' "x-component of F"
 CCTK_REAL Fy_stag TYPE=gf CENTERING={vcv} TAGS='checkpoint="no"' "y-component of F"
