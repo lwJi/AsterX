@@ -36,10 +36,11 @@ enum class rec_var_t { v_vec, z_vec, s_vec };
 // complex because it has to handle any direction, but as reward,
 // there is only one function, not three.
 template <int dir, typename EOSType>
-void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, rec_var_t rec_var,
-              reconstruction_t reconstruction,
-              reconstruction_t reconstruction_LO,
-              reconstruct_params_t reconstruct_params, flux_t fluxtype) {
+void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
+              const reconstruction_t reconstruction,
+              const reconstruction_t reconstruction_LO,
+              const reconstruct_params_t reconstruct_params,
+              const flux_t fluxtype) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_Fluxes;
   DECLARE_CCTK_PARAMETERS;
 
@@ -77,6 +78,7 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, rec_var_t rec_var,
   const vec<GF3D2<CCTK_REAL>, dim> fluxBxs{fxBx, fyBx, fzBx};
   const vec<GF3D2<CCTK_REAL>, dim> fluxBys{fxBy, fyBy, fzBy};
   const vec<GF3D2<CCTK_REAL>, dim> fluxBzs{fxBz, fyBz, fzBz};
+
   /* grid functions */
   const vec<GF3D2<const CCTK_REAL>, dim> gf_vels{velx, vely, velz};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_zvec{zvec_x, zvec_y, zvec_z};
@@ -86,6 +88,7 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, rec_var_t rec_var,
                                                     dBz_stag};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
   const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
+
   /* grid functions for Upwind CT */
   const vec<GF3D2<CCTK_REAL>, dim> vtildes_one{vtilde_y_xface, vtilde_z_yface,
                                                vtilde_x_zface};
@@ -114,21 +117,17 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, rec_var_t rec_var,
                       vec<CCTK_REAL, 2> flux) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         CCTK_REAL flx;
         switch (fluxtype) {
-
         case flux_t::LxF: {
           flx = laxf(lam, var, flux);
           break;
         }
-
         case flux_t::HLLE: {
           flx = hlle(lam, var, flux);
           break;
         }
-
         default:
           assert(0);
         }
-
         return flx;
       };
 

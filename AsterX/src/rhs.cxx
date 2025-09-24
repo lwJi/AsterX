@@ -16,7 +16,9 @@ using namespace AsterUtils;
 enum class vector_potential_gauge_t { algebraic, generalized_lorentz };
 
 template <int dir>
-void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge) {
+void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge,
+                   const reconstruction_t reconstruction,
+                   const reconstruct_params_t reconstruct_params) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_RHS;
   DECLARE_CCTK_PARAMETERS;
 
@@ -49,45 +51,6 @@ void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge) {
   const vec<GF3D2<CCTK_REAL>, dim> gf_Avec_rhs{Avec_x_rhs, Avec_y_rhs,
                                                Avec_z_rhs};
 
-  reconstruction_t reconstruction;
-  if (CCTK_EQUALS(reconstruction_method, "Godunov"))
-    reconstruction = reconstruction_t::Godunov;
-  else if (CCTK_EQUALS(reconstruction_method, "minmod"))
-    reconstruction = reconstruction_t::minmod;
-  else if (CCTK_EQUALS(reconstruction_method, "monocentral"))
-    reconstruction = reconstruction_t::monocentral;
-  else if (CCTK_EQUALS(reconstruction_method, "ppm"))
-    reconstruction = reconstruction_t::ppm;
-  else if (CCTK_EQUALS(reconstruction_method, "eppm"))
-    reconstruction = reconstruction_t::eppm;
-  else if (CCTK_EQUALS(reconstruction_method, "wenoz"))
-    reconstruction = reconstruction_t::wenoz;
-  else if (CCTK_EQUALS(reconstruction_method, "mp5"))
-    reconstruction = reconstruction_t::mp5;
-  else
-    CCTK_ERROR("Unknown value for parameter \"reconstruction_method\"");
-
-  // reconstruction parameters struct
-  reconstruct_params_t reconstruct_params;
-
-  // ppm parameters
-  reconstruct_params.ppm_shock_detection = ppm_shock_detection;
-  reconstruct_params.ppm_zone_flattening = ppm_zone_flattening;
-  reconstruct_params.poly_k = poly_k;
-  reconstruct_params.poly_gamma = poly_gamma;
-  reconstruct_params.ppm_eta1 = ppm_eta1;
-  reconstruct_params.ppm_eta2 = ppm_eta2;
-  reconstruct_params.ppm_eps = ppm_eps;
-  reconstruct_params.ppm_eps_shock = ppm_eps_shock;
-  reconstruct_params.ppm_small = ppm_small;
-  reconstruct_params.ppm_omega1 = ppm_omega1;
-  reconstruct_params.ppm_omega2 = ppm_omega2;
-  reconstruct_params.enhanced_ppm_C2 = enhanced_ppm_C2;
-  // wenoz parameters
-  reconstruct_params.weno_eps = weno_eps;
-  // mp5 parameters
-  reconstruct_params.mp5_alpha = mp5_alpha;
-
   constexpr array<int, dim> edge_centred = {(dir == 0), (dir == 1), (dir == 2)};
 
   constexpr int j = (dir == 0) ? 1 : ((dir == 1) ? 2 : 0);
@@ -99,7 +62,6 @@ void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge) {
         CCTK_REAL E;
 
         if (use_uct) { // upwind-CT
-
           const vec<vec<CCTK_REAL, 2>, 3> dBstag_one_rc(
               [&](int m) ARITH_INLINE {
                 return vec<CCTK_REAL, 2>{
@@ -183,6 +145,45 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
   else
     CCTK_ERROR("Unknown value for parameter \"vector_potential_gauge\"");
 
+  reconstruction_t reconstruction;
+  if (CCTK_EQUALS(reconstruction_method, "Godunov"))
+    reconstruction = reconstruction_t::Godunov;
+  else if (CCTK_EQUALS(reconstruction_method, "minmod"))
+    reconstruction = reconstruction_t::minmod;
+  else if (CCTK_EQUALS(reconstruction_method, "monocentral"))
+    reconstruction = reconstruction_t::monocentral;
+  else if (CCTK_EQUALS(reconstruction_method, "ppm"))
+    reconstruction = reconstruction_t::ppm;
+  else if (CCTK_EQUALS(reconstruction_method, "eppm"))
+    reconstruction = reconstruction_t::eppm;
+  else if (CCTK_EQUALS(reconstruction_method, "wenoz"))
+    reconstruction = reconstruction_t::wenoz;
+  else if (CCTK_EQUALS(reconstruction_method, "mp5"))
+    reconstruction = reconstruction_t::mp5;
+  else
+    CCTK_ERROR("Unknown value for parameter \"reconstruction_method\"");
+
+  // reconstruction parameters struct
+  reconstruct_params_t reconstruct_params;
+
+  // ppm parameters
+  reconstruct_params.ppm_shock_detection = ppm_shock_detection;
+  reconstruct_params.ppm_zone_flattening = ppm_zone_flattening;
+  reconstruct_params.poly_k = poly_k;
+  reconstruct_params.poly_gamma = poly_gamma;
+  reconstruct_params.ppm_eta1 = ppm_eta1;
+  reconstruct_params.ppm_eta2 = ppm_eta2;
+  reconstruct_params.ppm_eps = ppm_eps;
+  reconstruct_params.ppm_eps_shock = ppm_eps_shock;
+  reconstruct_params.ppm_small = ppm_small;
+  reconstruct_params.ppm_omega1 = ppm_omega1;
+  reconstruct_params.ppm_omega2 = ppm_omega2;
+  reconstruct_params.enhanced_ppm_C2 = enhanced_ppm_C2;
+  // wenoz parameters
+  reconstruct_params.weno_eps = weno_eps;
+  // mp5 parameters
+  reconstruct_params.mp5_alpha = mp5_alpha;
+
   const vec<CCTK_REAL, dim> idx{1 / CCTK_DELTA_SPACE(0),
                                 1 / CCTK_DELTA_SPACE(1),
                                 1 / CCTK_DELTA_SPACE(2)};
@@ -231,9 +232,9 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
 #endif
       });
 
-  CalcRHSofAvec<0>(CCTK_PASS_CTOC, gauge);
-  CalcRHSofAvec<1>(CCTK_PASS_CTOC, gauge);
-  CalcRHSofAvec<2>(CCTK_PASS_CTOC, gauge);
+  CalcRHSofAvec<0>(CCTK_PASS_CTOC, gauge, reconstruction, reconstruct_params);
+  CalcRHSofAvec<1>(CCTK_PASS_CTOC, gauge, reconstruction, reconstruct_params);
+  CalcRHSofAvec<2>(CCTK_PASS_CTOC, gauge, reconstruction, reconstruct_params);
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
