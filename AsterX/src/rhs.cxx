@@ -55,13 +55,15 @@ void CalcRHSofAvec_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
   const vec<GF3D2<CCTK_REAL>, dim> gf_Avec_rhs{Avec_x_rhs, Avec_y_rhs,
                                                Avec_z_rhs};
 
-  // edge centered loop
-  grid.loop_int_device<i == 0, i == 1, i == 2>(
-      grid.nghostzones,
-      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        CCTK_REAL E;
+  constexpr CCTK_REAL is_glorentz =
+      (gauge == vector_potential_gauge_t::generalized_lorentz) ? CCTK_REAL(1)
+                                                               : CCTK_REAL(0);
 
-        if constexpr (use_uct) { // upwind-CT
+  // edge centered loop
+  if constexpr (use_uct) { // upwind-CT
+    grid.loop_int_device<i == 0, i == 1, i == 2>(
+        grid.nghostzones,
+        [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
           // reconstruct in k-dir
           const vec<CCTK_REAL, 2> dBstag_j_reck_rc{
               reconstruct(dB_stag(j), p, reconstruction, k, false, false, press,
@@ -92,23 +94,25 @@ void CalcRHSofAvec_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
           const CCTK_REAL ap_j = ap_face(j)(p.I);
           const CCTK_REAL am_j = am_face(j)(p.I);
 
-          E = hll_upwind(BjL, BjR, vkL * BjL, vkR * BjR, ap_k, am_k) -
+          const CCTK_REAL E =
+              hll_upwind(BjL, BjR, vkL * BjL, vkR * BjR, ap_k, am_k) -
               hll_upwind(BkL, BkR, vjL * BkL, vjR * BkR, ap_j, am_j);
-        } else { // flux-CT
+
+          gf_Avec_rhs(i)(p.I) = -E - is_glorentz * calc_fd2_v2e<i>(G, p);
+        });
+  } else { // flux-CT
+    grid.loop_int_device<i == 0, i == 1, i == 2>(
+        grid.nghostzones,
+        [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
           const CCTK_REAL Fjk = gf_fBs(j)(k)(p.I);
           const CCTK_REAL Fjk_m = gf_fBs(j)(k)(p.I - p.DI[j]);
           const CCTK_REAL Fkj = gf_fBs(k)(j)(p.I);
           const CCTK_REAL Fkj_m = gf_fBs(k)(j)(p.I - p.DI[k]);
-          E = CCTK_REAL(0.25) * ((Fjk + Fjk_m) - (Fkj + Fkj_m));
-        }
+          const CCTK_REAL E = CCTK_REAL(0.25) * ((Fjk + Fjk_m) - (Fkj + Fkj_m));
 
-        if constexpr (gauge == vector_potential_gauge_t::algebraic) {
-          gf_Avec_rhs(i)(p.I) = -E;
-        } else if constexpr (gauge ==
-                             vector_potential_gauge_t::generalized_lorentz) {
-          gf_Avec_rhs(i)(p.I) = -E - calc_fd2_v2e<i>(G, p);
-        }
-      });
+          gf_Avec_rhs(i)(p.I) = -E - is_glorentz * calc_fd2_v2e<i>(G, p);
+        });
+  }
 }
 
 template <vector_potential_gauge_t gauge>
@@ -119,14 +123,15 @@ void CalcRHSofPsi_impl(CCTK_ARGUMENTS, const CCTK_REAL damp_fac) {
   const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Fbeta{Fbetax, Fbetay, Fbetaz};
 
-  const auto damp_fac_local = damp_fac;
-  grid.loop_int_device<0, 0, 0>(
-      grid.nghostzones,
-      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        if constexpr (gauge == vector_potential_gauge_t::algebraic) {
-          Psi_rhs(p.I) = 0.0;
-        } else if constexpr (gauge ==
-                             vector_potential_gauge_t::generalized_lorentz) {
+  if constexpr (gauge == vector_potential_gauge_t::algebraic) {
+    grid.loop_int_device<0, 0, 0>(
+        grid.nghostzones,
+        [=] CCTK_DEVICE(const PointDesc &p)
+            CCTK_ATTRIBUTE_ALWAYS_INLINE { Psi_rhs(p.I) = 0.0; });
+  } else if constexpr (gauge == vector_potential_gauge_t::generalized_lorentz) {
+    grid.loop_int_device<0, 0, 0>(
+        grid.nghostzones,
+        [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
           CCTK_REAL dF = 0.0;
           for (int i = 0; i < dim; i++) {
             dF += calc_fd2_e2v(gf_Fstag(i), p, i) -
@@ -134,9 +139,9 @@ void CalcRHSofPsi_impl(CCTK_ARGUMENTS, const CCTK_REAL damp_fac) {
                        ? calc_fd2_v2v_oneside<-1>(gf_Fbeta(i), p, i)
                        : calc_fd2_v2v_oneside<+1>(gf_Fbeta(i), p, i));
           }
-          Psi_rhs(p.I) = -dF - damp_fac_local * alp(p.I) * Psi(p.I);
-        }
-      });
+          Psi_rhs(p.I) = -dF - damp_fac * alp(p.I) * Psi(p.I);
+        });
+  }
 }
 
 template <int i>
