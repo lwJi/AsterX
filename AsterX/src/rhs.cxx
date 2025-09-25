@@ -114,6 +114,33 @@ void CalcRHSofAvec_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
       });
 }
 
+template <vector_potential_gauge_t gauge>
+void CalcRHSofPsi_impl(CCTK_ARGUMENTS, const CCTK_REAL damp_fac) {
+  DECLARE_CCTK_ARGUMENTSX_AsterX_RHS;
+
+  const vec<GF3D2<const CCTK_REAL>, dim> gf_Fstag{Fx_stag, Fy_stag, Fz_stag};
+  const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
+  const vec<GF3D2<const CCTK_REAL>, dim> gf_Fbeta{Fbetax, Fbetay, Fbetaz};
+
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+        if constexpr (gauge == vector_potential_gauge_t::algebraic) {
+          Psi_rhs(p.I) = 0.0;
+        } else if constexpr (gauge ==
+                             vector_potential_gauge_t::generalized_lorentz) {
+          CCTK_REAL dF = 0.0;
+          for (int i = 0; i < dim; i++) {
+            dF += calc_fd2_e2v(gf_Fstag(i), p, i) -
+                  (gf_beta(i)(p.I) < 0
+                       ? calc_fd2_v2v_oneside<-1>(gf_Fbeta(i), p, i)
+                       : calc_fd2_v2v_oneside<+1>(gf_Fbeta(i), p, i));
+          }
+          Psi_rhs(p.I) = -dF - damp_fac * alp(p.I) * Psi(p.I);
+        }
+      });
+}
+
 template <int i>
 void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge,
                    const bool use_uct, const reconstruction_t reconstruction,
@@ -141,6 +168,23 @@ void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge,
     }
     break;
   }
+  default:
+    assert(0);
+  }
+}
+
+void CalcRHSofPsi(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge,
+                  const CCTK_REAL damp_fac) {
+  switch (gauge) {
+  case vector_potential_gauge_t::algebraic: {
+    CalcRHSofPsi_impl<vector_potential_gauge_t::algebraic>(CCTK_PASS_CTOC,
+                                                           damp_fac);
+    break;
+  }
+  case vector_potential_gauge_t::generalized_lorentz: {
+    CalcRHSofPsi_impl<vector_potential_gauge_t::generalized_lorentz>(
+        CCTK_PASS_CTOC, damp_fac);
+  } break;
   default:
     assert(0);
   }
@@ -209,10 +253,6 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
   const vec<GF3D2<const CCTK_REAL>, dim> gf_ftau{fxtau, fytau, fztau};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_fDYe{fxDYe, fyDYe, fzDYe};
 
-  const vec<GF3D2<const CCTK_REAL>, dim> gf_Fstag{Fx_stag, Fy_stag, Fz_stag};
-  const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
-  const vec<GF3D2<const CCTK_REAL>, dim> gf_Fbeta{Fbetax, Fbetay, Fbetaz};
-
   const auto calcupdate_hydro =
       [=] CCTK_DEVICE(const vec<GF3D2<const CCTK_REAL>, dim> &gf_fluxes,
                       const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
@@ -252,31 +292,7 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
   CalcRHSofAvec<2>(CCTK_PASS_CTOC, gauge, use_uct, reconstruction,
                    reconstruct_params);
 
-  grid.loop_int_device<0, 0, 0>(
-      grid.nghostzones,
-      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        switch (gauge) {
-        case vector_potential_gauge_t::algebraic: {
-          Psi_rhs(p.I) = 0.0;
-          break;
-        }
-
-        case vector_potential_gauge_t::generalized_lorentz: {
-          CCTK_REAL dF = 0.0;
-          for (int i = 0; i < dim; i++) {
-            dF += calc_fd2_e2v(gf_Fstag(i), p, i) -
-                  (gf_beta(i)(p.I) < 0
-                       ? calc_fd2_v2v_oneside<-1>(gf_Fbeta(i), p, i)
-                       : calc_fd2_v2v_oneside<+1>(gf_Fbeta(i), p, i));
-          }
-          Psi_rhs(p.I) = -dF - lorenz_damp_fac * alp(p.I) * Psi(p.I);
-          break;
-        }
-
-        default:
-          assert(0);
-        }
-      });
+  CalcRHSofPsi(CCTK_PASS_CTOC, gauge, lorenz_damp_fac);
 }
 
 } // namespace AsterX
