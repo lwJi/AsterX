@@ -25,12 +25,10 @@ hll_upwind(T uL, T uR, T fL, T fR, T ap, T am) {
   return (ap * fL + am * fR - ap * am * (uR - uL)) / s;
 }
 
-template <int i>
-void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge,
-                   const reconstruction_t reconstruction,
-                   const reconstruct_params_t reconstruct_params) {
+template <int i, vector_potential_gauge_t gauge, bool use_uct>
+void CalcRHSofAvec_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
+                        const reconstruct_params_t reconstruct_params) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_RHS;
-  DECLARE_CCTK_PARAMETERS;
 
   // the other two directions
   constexpr int j = (i == 0) ? 1 : ((i == 1) ? 2 : 0);
@@ -69,7 +67,7 @@ void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         CCTK_REAL E;
 
-        if (use_uct) { // upwind-CT
+        if constexpr (use_uct) { // upwind-CT
           // reconstruct in k-dir
           const vec<CCTK_REAL, 2> dBstag_j_reck_rc{
               reconstruct(dBstag(j), p, reconstruction, k, false, false, press,
@@ -107,21 +105,45 @@ void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge,
                       (gf_fBs(k)(j)(p.I) + gf_fBs(k)(j)(p.I - p.DI[k])));
         }
 
-        switch (gauge) {
-        case vector_potential_gauge_t::algebraic: {
+        if constexpr (gauge == vector_potential_gauge_t::algebraic) {
           gf_Avec_rhs(i)(p.I) = -E;
-          break;
-        }
-
-        case vector_potential_gauge_t::generalized_lorentz: {
+        } else if constexpr (gauge ==
+                             vector_potential_gauge_t::generalized_lorentz) {
           gf_Avec_rhs(i)(p.I) = -E - calc_fd2_v2e<i>(G, p);
-          break;
-        }
-
-        default:
-          assert(0);
         }
       });
+}
+
+template <int i>
+void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge,
+                   const bool use_uct, const reconstruction_t reconstruction,
+                   const reconstruct_params_t reconstruct_params) {
+  switch (gauge) {
+  case vector_potential_gauge_t::algebraic: {
+    if (use_uct) {
+      CalcRHSofAvec_impl<i, vector_potential_gauge_t::algebraic, true>(
+          CCTK_PASS_CTOC, reconstruction, reconstruct_params);
+    } else {
+      CalcRHSofAvec_impl<i, vector_potential_gauge_t::algebraic, false>(
+          CCTK_PASS_CTOC, reconstruction, reconstruct_params);
+    }
+    break;
+  }
+  case vector_potential_gauge_t::generalized_lorentz: {
+    if (use_uct) {
+      CalcRHSofAvec_impl<i, vector_potential_gauge_t::generalized_lorentz,
+                         true>(CCTK_PASS_CTOC, reconstruction,
+                               reconstruct_params);
+    } else {
+      CalcRHSofAvec_impl<i, vector_potential_gauge_t::generalized_lorentz,
+                         false>(CCTK_PASS_CTOC, reconstruction,
+                                reconstruct_params);
+    }
+    break;
+  }
+  default:
+    assert(0);
+  }
 }
 
 extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
@@ -223,9 +245,12 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
 #endif
       });
 
-  CalcRHSofAvec<0>(CCTK_PASS_CTOC, gauge, reconstruction, reconstruct_params);
-  CalcRHSofAvec<1>(CCTK_PASS_CTOC, gauge, reconstruction, reconstruct_params);
-  CalcRHSofAvec<2>(CCTK_PASS_CTOC, gauge, reconstruction, reconstruct_params);
+  CalcRHSofAvec<0>(CCTK_PASS_CTOC, gauge, use_uct, reconstruction,
+                   reconstruct_params);
+  CalcRHSofAvec<1>(CCTK_PASS_CTOC, gauge, use_uct, reconstruction,
+                   reconstruct_params);
+  CalcRHSofAvec<2>(CCTK_PASS_CTOC, gauge, use_uct, reconstruction,
+                   reconstruct_params);
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
