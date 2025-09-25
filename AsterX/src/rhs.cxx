@@ -17,7 +17,7 @@ enum class vector_potential_gauge_t { algebraic, generalized_lorentz };
 
 template <typename T>
 CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE static inline T
-hll_upwind(T uL, T uR, T fL, T fR, T ap, T am) {
+hll_upwind(T uL, T uR, T fL, T fR, T ap, T am) noexcept {
   const T s = ap + am;
   if (s <= T(1e-14)) {
     return T(0.5) * (fL + fR);
@@ -34,15 +34,17 @@ void CalcRHSofAvec_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
   constexpr int j = (i == 0) ? 1 : ((i == 1) ? 2 : 0);
   constexpr int k = (i == 0) ? 2 : ((i == 1) ? 0 : 1);
 
-  constexpr array<int, dim> edge_centred = {(i == 0), (i == 1), (i == 2)};
-
   // flux-CT
   const vec<vec<GF3D2<const CCTK_REAL>, dim>, dim> gf_fBs{
       {fxBx, fyBx, fzBx}, {fxBy, fyBy, fzBy}, {fxBz, fyBz, fzBz}};
 
   // upwind-CT
   const vec<GF3D2<const CCTK_REAL>, dim> gf_vels{velx, vely, velz};
-  const vec<GF3D2<const CCTK_REAL>, dim> dBstag{dBx_stag, dBy_stag, dBz_stag};
+  const vec<GF3D2<const CCTK_REAL>, dim> dB_stag{dBx_stag, dBy_stag, dBz_stag};
+  const vec<GF3D2<const CCTK_REAL>, dim> ap_face{amax_xface, amax_yface,
+                                                 amax_zface};
+  const vec<GF3D2<const CCTK_REAL>, dim> am_face{amin_xface, amin_yface,
+                                                 amin_zface};
   // j-comp reconstructed in k-dir
   const vec<GF3D2<const CCTK_REAL>, dim> vbars_j_reck{
       vbar_y_zface, vbar_z_xface, vbar_x_yface};
@@ -50,19 +52,11 @@ void CalcRHSofAvec_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
   const vec<GF3D2<const CCTK_REAL>, dim> vbars_k_recj{
       vbar_z_yface, vbar_x_zface, vbar_y_xface};
 
-  const vec<GF3D2<const CCTK_REAL>, dim> amax_reck{amax_zface, amax_xface,
-                                                   amax_yface};
-  const vec<GF3D2<const CCTK_REAL>, dim> amax_recj{amax_yface, amax_zface,
-                                                   amax_xface};
-  const vec<GF3D2<const CCTK_REAL>, dim> amin_reck{amin_zface, amin_xface,
-                                                   amin_yface};
-  const vec<GF3D2<const CCTK_REAL>, dim> amin_recj{amin_yface, amin_zface,
-                                                   amin_xface};
-
   const vec<GF3D2<CCTK_REAL>, dim> gf_Avec_rhs{Avec_x_rhs, Avec_y_rhs,
                                                Avec_z_rhs};
 
-  grid.loop_int_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
+  // edge centered loop
+  grid.loop_int_device<i == 0, i == 1, i == 2>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         CCTK_REAL E;
@@ -70,23 +64,18 @@ void CalcRHSofAvec_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
         if constexpr (use_uct) { // upwind-CT
           // reconstruct in k-dir
           const vec<CCTK_REAL, 2> dBstag_j_reck_rc{
-              reconstruct(dBstag(j), p, reconstruction, k, false, false, press,
+              reconstruct(dB_stag(j), p, reconstruction, k, false, false, press,
                           gf_vels(k), reconstruct_params)};
           const vec<CCTK_REAL, 2> vbars_k_recj_reck_rc{
               reconstruct(vbars_k_recj(i), p, reconstruction, k, false, false,
                           press, gf_vels(k), reconstruct_params)};
           // reconstruct in j-dir
           const vec<CCTK_REAL, 2> dBstag_k_recj_rc{
-              reconstruct(dBstag(k), p, reconstruction, j, false, false, press,
+              reconstruct(dB_stag(k), p, reconstruction, j, false, false, press,
                           gf_vels(j), reconstruct_params)};
           const vec<CCTK_REAL, 2> vbars_j_reck_recj_rc{
               reconstruct(vbars_j_reck(i), p, reconstruction, j, false, false,
                           press, gf_vels(j), reconstruct_params)};
-
-          const CCTK_REAL ap_k = amax_reck(i)(p.I);
-          const CCTK_REAL am_k = amin_reck(i)(p.I);
-          const CCTK_REAL ap_j = amax_recj(i)(p.I);
-          const CCTK_REAL am_j = amin_recj(i)(p.I);
 
           const CCTK_REAL BjL = dBstag_j_reck_rc(0);
           const CCTK_REAL BjR = dBstag_j_reck_rc(1);
@@ -98,11 +87,19 @@ void CalcRHSofAvec_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
           const CCTK_REAL vjL = vbars_j_reck_recj_rc(0);
           const CCTK_REAL vjR = vbars_j_reck_recj_rc(1);
 
+          const CCTK_REAL ap_k = ap_face(k)(p.I);
+          const CCTK_REAL am_k = am_face(k)(p.I);
+          const CCTK_REAL ap_j = ap_face(j)(p.I);
+          const CCTK_REAL am_j = am_face(j)(p.I);
+
           E = hll_upwind(BjL, BjR, vkL * BjL, vkR * BjR, ap_k, am_k) -
               hll_upwind(BkL, BkR, vjL * BkL, vjR * BkR, ap_j, am_j);
         } else { // flux-CT
-          E = 0.25 * ((gf_fBs(j)(k)(p.I) + gf_fBs(j)(k)(p.I - p.DI[j])) -
-                      (gf_fBs(k)(j)(p.I) + gf_fBs(k)(j)(p.I - p.DI[k])));
+          const CCTK_REAL Fjk = gf_fBs(j)(k)(p.I);
+          const CCTK_REAL Fjk_m = gf_fBs(j)(k)(p.I - p.DI[j]);
+          const CCTK_REAL Fkj = gf_fBs(k)(j)(p.I);
+          const CCTK_REAL Fkj_m = gf_fBs(k)(j)(p.I - p.DI[k]);
+          E = CCTK_REAL(0.25) * ((Fjk + Fjk_m) - (Fkj + Fkj_m));
         }
 
         if constexpr (gauge == vector_potential_gauge_t::algebraic) {
@@ -122,6 +119,7 @@ void CalcRHSofPsi_impl(CCTK_ARGUMENTS, const CCTK_REAL damp_fac) {
   const vec<GF3D2<const CCTK_REAL>, dim> gf_beta{betax, betay, betaz};
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Fbeta{Fbetax, Fbetay, Fbetaz};
 
+  const auto damp_fac_local = damp_fac;
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
@@ -136,7 +134,7 @@ void CalcRHSofPsi_impl(CCTK_ARGUMENTS, const CCTK_REAL damp_fac) {
                        ? calc_fd2_v2v_oneside<-1>(gf_Fbeta(i), p, i)
                        : calc_fd2_v2v_oneside<+1>(gf_Fbeta(i), p, i));
           }
-          Psi_rhs(p.I) = -dF - damp_fac * alp(p.I) * Psi(p.I);
+          Psi_rhs(p.I) = -dF - damp_fac_local * alp(p.I) * Psi(p.I);
         }
       });
 }
