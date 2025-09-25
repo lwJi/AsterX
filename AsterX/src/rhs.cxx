@@ -90,17 +90,18 @@ void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge,
           const CCTK_REAL ap_j = amax_recj(i)(p.I);
           const CCTK_REAL am_j = amin_recj(i)(p.I);
 
-          // first term
-          E = hll_upwind(dBstag_j_reck_rc(0), dBstag_j_reck_rc(1),
-                         vbars_k_recj_reck_rc(0) * dBstag_j_reck_rc(0),
-                         vbars_k_recj_reck_rc(1) * dBstag_j_reck_rc(1), ap_k,
-                         am_k);
+          const CCTK_REAL BjL = dBstag_j_reck_rc(0);
+          const CCTK_REAL BjR = dBstag_j_reck_rc(1);
+          const CCTK_REAL vkL = vbars_k_recj_reck_rc(0);
+          const CCTK_REAL vkR = vbars_k_recj_reck_rc(1);
 
-          // second term
-          E -= hll_upwind(dBstag_k_recj_rc(0), dBstag_k_recj_rc(1),
-                          vbars_j_reck_recj_rc(0) * dBstag_k_recj_rc(0),
-                          vbars_j_reck_recj_rc(1) * dBstag_k_recj_rc(1), ap_j,
-                          am_j);
+          const CCTK_REAL BkL = dBstag_k_recj_rc(0);
+          const CCTK_REAL BkR = dBstag_k_recj_rc(1);
+          const CCTK_REAL vjL = vbars_j_reck_recj_rc(0);
+          const CCTK_REAL vjR = vbars_j_reck_recj_rc(1);
+
+          E = hll_upwind(BjL, BjR, vkL * BjL, vkR * BjR, ap_k, am_k) -
+              hll_upwind(BkL, BkR, vjL * BkL, vjR * BkR, ap_j, am_j);
         } else { // flux-CT
           E = 0.25 * ((gf_fBs(j)(k)(p.I) + gf_fBs(j)(k)(p.I - p.DI[j])) -
                       (gf_fBs(k)(j)(p.I) + gf_fBs(k)(j)(p.I - p.DI[k])));
