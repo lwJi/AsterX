@@ -836,13 +836,11 @@ extern "C" void AsterX_Fluxes(CCTK_ARGUMENTS) {
   }
 }
 
-template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
+template <int dir_i> void CalcFstag(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_CalcAuxTermsForAvecPsiRHS;
   DECLARE_CCTK_PARAMETERS;
 
-  constexpr array<int, dim> edge_centred = {(dir == 0), (dir == 1), (dir == 2)};
-
-  constexpr int dir_i = dir;
+  // the other two directions
   constexpr int dir_j = (dir_i == 0) ? 1 : ((dir_i == 1) ? 2 : 0);
   constexpr int dir_k = (dir_i == 0) ? 2 : ((dir_i == 1) ? 0 : 1);
 
@@ -850,7 +848,7 @@ template <int dir> void CalcFstag(CCTK_ARGUMENTS) {
   const vec<GF3D2<const CCTK_REAL>, dim> gf_Avecs{Avec_x, Avec_y, Avec_z};
   const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
 
-  grid.loop_mix_device<edge_centred[0], edge_centred[1], edge_centred[2]>(
+  grid.loop_mix_device<dir_i == 0, dir_i == 1, dir_i == 2>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         const CCTK_REAL alp_e = calc_avg_v2e<dir_i>(alp, p);
