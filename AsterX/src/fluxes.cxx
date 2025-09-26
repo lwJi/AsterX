@@ -63,7 +63,7 @@ avg_upwind(T uL, T uR, T ap, T am) noexcept {
 // Calculate the fluxes in direction `dir`. This function is more
 // complex because it has to handle any direction, but as reward,
 // there is only one function, not three.
-template <int dir, typename EOSType>
+template <int dir_i, typename EOSType>
 void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
               const reconstruction_t reconstruction,
               const reconstruction_t reconstruction_LO,
@@ -74,24 +74,24 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
 
   switch (reconstruction) {
   case reconstruction_t::Godunov:
-    assert(cctk_nghostzones[dir] >= 1);
+    assert(cctk_nghostzones[dir_i] >= 1);
     break;
   case reconstruction_t::minmod:
-    assert(cctk_nghostzones[dir] >= 2);
+    assert(cctk_nghostzones[dir_i] >= 2);
     break;
   case reconstruction_t::monocentral:
-    assert(cctk_nghostzones[dir] >= 2);
+    assert(cctk_nghostzones[dir_i] >= 2);
     break;
   case reconstruction_t::ppm:
-    assert(cctk_nghostzones[dir] >= 3);
+    assert(cctk_nghostzones[dir_i] >= 3);
     break;
   case reconstruction_t::eppm:
-    assert(cctk_nghostzones[dir] >= 3);
+    assert(cctk_nghostzones[dir_i] >= 3);
     break;
   case reconstruction_t::wenoz:
-    assert(cctk_nghostzones[dir] >= 3);
+    assert(cctk_nghostzones[dir_i] >= 3);
   case reconstruction_t::mp5:
-    assert(cctk_nghostzones[dir] >= 3);
+    assert(cctk_nghostzones[dir_i] >= 3);
     break;
   }
 
@@ -125,19 +125,20 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
   const vec<GF3D2<CCTK_REAL>, dim> ap_face{amax_xface, amax_yface, amax_zface};
   const vec<GF3D2<CCTK_REAL>, dim> am_face{amin_xface, amin_yface, amin_zface};
 
-  static_assert(dir >= 0 && dir < 3, "");
+  static_assert(dir_i >= 0 && dir_i < 3, "");
 
-  const auto reconstruct_pt =
-      [=] CCTK_DEVICE(const GF3D2<const CCTK_REAL> &var, const PointDesc &p,
-                      const bool &gf_is_rho, const bool &gf_is_press) {
-        return reconstruct(var, p, reconstruction, dir, gf_is_rho, gf_is_press,
-                           press, gf_vels(dir), reconstruct_params);
-      };
+  const auto reconstruct_pt = [=] CCTK_DEVICE(const GF3D2<const CCTK_REAL> &var,
+                                              const PointDesc &p,
+                                              const bool &gf_is_rho,
+                                              const bool &gf_is_press) {
+    return reconstruct(var, p, reconstruction, dir_i, gf_is_rho, gf_is_press,
+                       press, gf_vels(dir_i), reconstruct_params);
+  };
   const auto reconstruct_loworder =
       [=] CCTK_DEVICE(const GF3D2<const CCTK_REAL> &var, const PointDesc &p,
                       const bool &gf_is_rho, const bool &gf_is_press) {
-        return reconstruct(var, p, reconstruction_LO, dir, gf_is_rho,
-                           gf_is_press, press, gf_vels(dir),
+        return reconstruct(var, p, reconstruction_LO, dir_i, gf_is_rho,
+                           gf_is_press, press, gf_vels(dir_i),
                            reconstruct_params);
       };
   const auto calcflux =
@@ -159,32 +160,32 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
         return flx;
       };
 
-  // Face-centred grid functions (in direction `dir`)
-  constexpr array<int, dim> face_centred = {!(dir == 0), !(dir == 1),
-                                            !(dir == 2)};
+  // Face-centred grid functions (in direction `dir_i`)
+  constexpr array<int, dim> face_centred = {!(dir_i == 0), !(dir_i == 1),
+                                            !(dir_i == 2)};
 
-  constexpr int dir_j = (dir == 0) ? 1 : ((dir == 1) ? 2 : 0);
-  constexpr int dir_k = (dir == 0) ? 2 : ((dir == 1) ? 0 : 1);
+  constexpr int dir_j = (dir_i == 0) ? 1 : ((dir_i == 1) ? 2 : 0);
+  constexpr int dir_k = (dir_i == 0) ? 2 : ((dir_i == 1) ? 0 : 1);
 
   // initialize to zero
   grid.loop_all_device<face_centred[0], face_centred[1], face_centred[2]>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        fluxdenss(dir)(p.I) = 0;
-        fluxDEnts(dir)(p.I) = 0;
-        fluxmomxs(dir)(p.I) = 0;
-        fluxmomys(dir)(p.I) = 0;
-        fluxmomzs(dir)(p.I) = 0;
-        fluxtaus(dir)(p.I) = 0;
-        fluxDYes(dir)(p.I) = 0;
-        fluxBxs(dir)(p.I) = 0;
-        fluxBys(dir)(p.I) = 0;
-        fluxBzs(dir)(p.I) = 0;
+        fluxdenss(dir_i)(p.I) = 0;
+        fluxDEnts(dir_i)(p.I) = 0;
+        fluxmomxs(dir_i)(p.I) = 0;
+        fluxmomys(dir_i)(p.I) = 0;
+        fluxmomzs(dir_i)(p.I) = 0;
+        fluxtaus(dir_i)(p.I) = 0;
+        fluxDYes(dir_i)(p.I) = 0;
+        fluxBxs(dir_i)(p.I) = 0;
+        fluxBys(dir_i)(p.I) = 0;
+        fluxBzs(dir_i)(p.I) = 0;
 
-        ap_face(dir)(p.I) = 0;
-        am_face(dir)(p.I) = 0;
-        vbar_j(dir)(p.I) = 0;
-        vbar_k(dir)(p.I) = 0;
+        ap_face(dir_i)(p.I) = 0;
+        am_face(dir_i)(p.I) = 0;
+        vbar_j(dir_i)(p.I) = 0;
+        vbar_k(dir_i)(p.I) = 0;
       });
 
   grid.loop_mix_device<face_centred[0], face_centred[1],
@@ -196,11 +197,11 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
      * computed from reconstructed variables */
 
     /* Interpolate metric components from vertices to faces */
-    const CCTK_REAL alp_avg = calc_avg_v2f<dir>(alp, p);
+    const CCTK_REAL alp_avg = calc_avg_v2f<dir_i>(alp, p);
     const vec<CCTK_REAL, 3> betas_avg(
-        [&](int i) ARITH_INLINE { return calc_avg_v2f<dir>(gf_beta(i), p); });
+        [&](int i) ARITH_INLINE { return calc_avg_v2f<dir_i>(gf_beta(i), p); });
     const smat<CCTK_REAL, 3> g_avg([&](int i, int j) ARITH_INLINE {
-      return calc_avg_v2f<dir>(gf_g(i, j), p);
+      return calc_avg_v2f<dir_i>(gf_g(i, j), p);
     });
 
     /* determinant of spatial metric */
@@ -307,13 +308,13 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
     });
 
     // Introduce reconstructed Bs
-    // Use staggered dB for i == dir
+    // Use staggered dB for i == dir_i
     vec<vec<CCTK_REAL, 2>, 3> Bs_rc;
 
     // Assign the value for the primary direction
-    const CCTK_REAL val = gf_dBstags(dir)(p.I) / sqrtg;
-    Bs_rc(dir)(0) = val;
-    Bs_rc(dir)(1) = val;
+    const CCTK_REAL val = gf_dBstags(dir_i)(p.I) / sqrtg;
+    Bs_rc(dir_i)(0) = val;
+    Bs_rc(dir_i)(1) = val;
 
     // Lambda to assign the reconstructed values
     auto assign_reconstructed = [&](int d) {
@@ -456,11 +457,11 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
       return (B2_rc(f) + pow2(alp_b0_rc(f))) / pow2(w_lorentz_rc(f));
     });
 
-    /* componets correspond to the dir we are considering */
-    const CCTK_REAL beta_avg = betas_avg(dir);
-    const vec<CCTK_REAL, 2> vel_rc{vels_rc(dir)};
-    const vec<CCTK_REAL, 2> B_rc{Bs_rc(dir)};
-    const vec<CCTK_REAL, 2> vtilde_rc{vtildes_rc(dir)};
+    /* componets correspond to the dir_i we are considering */
+    const CCTK_REAL beta_avg = betas_avg(dir_i);
+    const vec<CCTK_REAL, 2> vel_rc{vels_rc(dir_i)};
+    const vec<CCTK_REAL, 2> B_rc{Bs_rc(dir_i)};
+    const vec<CCTK_REAL, 2> vtilde_rc{vtildes_rc(dir_i)};
 
     // TODO: Compute pressure based on user-specified EOS.
     // Currently, computing press for classical ideal gas from reconstructed
@@ -518,8 +519,8 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
 
     /* Computing fluxes of conserved variables: */
 
-    /* auxiliary: unit in 'dir' */
-    const vec<CCTK_REAL, 3> unit_dir{vec<int, 3>::unit(dir)};
+    /* auxiliary: unit in 'dir_i' */
+    const vec<CCTK_REAL, 3> unit_dir_i{vec<int, 3>::unit(dir_i)};
     /* auxiliary: alpha * sqrt(g) */
     const CCTK_REAL alp_sqrtg = alp_avg * sqrtg;
     /* auxiliary: B^i / W */
@@ -540,7 +541,7 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
     const vec<vec<CCTK_REAL, 2>, 3> flux_moms([&](int j) ARITH_INLINE {
       return vec<CCTK_REAL, 2>([&](int f) ARITH_INLINE {
         return moms_rc(j)(f) * vtilde_rc(f) +
-               alp_sqrtg * (press_plus_pmag_rc(f) * unit_dir(j) -
+               alp_sqrtg * (press_plus_pmag_rc(f) * unit_dir_i(j) -
                             blows_rc(j)(f) * B_over_w_lorentz_rc(f));
       });
     });
@@ -564,31 +565,31 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
         calc_cross_product(Btildes_rc, vtildes_rc);
     /* flux(Btildes) = {{0, -Ez, Ey}, {Ez, 0, -Ex}, {-Ey, Ex, 0}} */
     const vec<vec<CCTK_REAL, 2>, 3> flux_Btildes =
-        calc_cross_product(unit_dir, Es_rc);
+        calc_cross_product(unit_dir_i, Es_rc);
 
     /* Calculate eigenvalues: */
 
     /* variable for either g^xx, g^yy or g^zz depending on the direction */
-    const CCTK_REAL u_avg = calc_inv(g_avg, detg_avg)(dir, dir);
+    const CCTK_REAL u_avg = calc_inv(g_avg, detg_avg)(dir_i, dir_i);
     /* eigenvalues */
     vec<vec<CCTK_REAL, 4>, 2> lambda =
         eigenvalues(alp_avg, beta_avg, u_avg, vel_rc, rho_rc, cs2_rc,
                     w_lorentz_rc, h_rc, bsq_rc);
 
     /* Calculate numerical fluxes */
-    fluxdenss(dir)(p.I) = calcflux(lambda, dens_rc, flux_dens);
-    fluxDEnts(dir)(p.I) = calcflux(lambda, DEnt_rc, flux_DEnt);
-    fluxmomxs(dir)(p.I) = calcflux(lambda, moms_rc(0), flux_moms(0));
-    fluxmomys(dir)(p.I) = calcflux(lambda, moms_rc(1), flux_moms(1));
-    fluxmomzs(dir)(p.I) = calcflux(lambda, moms_rc(2), flux_moms(2));
-    fluxtaus(dir)(p.I) = calcflux(lambda, tau_rc, flux_tau);
-    fluxDYes(dir)(p.I) = calcflux(lambda, DYe_rc, flux_DYe);
-    fluxBxs(dir)(p.I) =
-        (dir != 0) * calcflux(lambda, Btildes_rc(0), flux_Btildes(0));
-    fluxBys(dir)(p.I) =
-        (dir != 1) * calcflux(lambda, Btildes_rc(1), flux_Btildes(1));
-    fluxBzs(dir)(p.I) =
-        (dir != 2) * calcflux(lambda, Btildes_rc(2), flux_Btildes(2));
+    fluxdenss(dir_i)(p.I) = calcflux(lambda, dens_rc, flux_dens);
+    fluxDEnts(dir_i)(p.I) = calcflux(lambda, DEnt_rc, flux_DEnt);
+    fluxmomxs(dir_i)(p.I) = calcflux(lambda, moms_rc(0), flux_moms(0));
+    fluxmomys(dir_i)(p.I) = calcflux(lambda, moms_rc(1), flux_moms(1));
+    fluxmomzs(dir_i)(p.I) = calcflux(lambda, moms_rc(2), flux_moms(2));
+    fluxtaus(dir_i)(p.I) = calcflux(lambda, tau_rc, flux_tau);
+    fluxDYes(dir_i)(p.I) = calcflux(lambda, DYe_rc, flux_DYe);
+    fluxBxs(dir_i)(p.I) =
+        (dir_i != 0) * calcflux(lambda, Btildes_rc(0), flux_Btildes(0));
+    fluxBys(dir_i)(p.I) =
+        (dir_i != 1) * calcflux(lambda, Btildes_rc(1), flux_Btildes(1));
+    fluxBzs(dir_i)(p.I) =
+        (dir_i != 2) * calcflux(lambda, Btildes_rc(2), flux_Btildes(2));
 
 #ifdef CCTK_DEBUG
     if (isnan(dens_rc(0)) || isnan(dens_rc(1)) || isnan(moms_rc(0)(0)) ||
@@ -605,21 +606,21 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
         isnan(flux_tau(0)) || isnan(flux_tau(1)) || isnan(flux_Btildes(0)(0)) ||
         isnan(flux_Btildes(0)(1)) || isnan(flux_Btildes(1)(0)) ||
         isnan(flux_Btildes(1)(1)) || isnan(flux_Btildes(2)(0)) ||
-        isnan(flux_Btildes(2)(1)) || isnan(fluxdenss(dir)(p.I)) ||
-        isnan(fluxmomxs(dir)(p.I)) || isnan(fluxmomys(dir)(p.I)) ||
-        isnan(fluxmomzs(dir)(p.I)) || isnan(fluxtaus(dir)(p.I)) ||
-        isnan(fluxBxs(dir)(p.I)) || isnan(fluxBys(dir)(p.I)) ||
-        isnan(fluxBzs(dir)(p.I)) || rho_rc(0) < 0.0 || rho_rc(1) < 0.0 ||
+        isnan(flux_Btildes(2)(1)) || isnan(fluxdenss(dir_i)(p.I)) ||
+        isnan(fluxmomxs(dir_i)(p.I)) || isnan(fluxmomys(dir_i)(p.I)) ||
+        isnan(fluxmomzs(dir_i)(p.I)) || isnan(fluxtaus(dir_i)(p.I)) ||
+        isnan(fluxBxs(dir_i)(p.I)) || isnan(fluxBys(dir_i)(p.I)) ||
+        isnan(fluxBzs(dir_i)(p.I)) || rho_rc(0) < 0.0 || rho_rc(1) < 0.0 ||
         press_rc(0) < 0.0 || press_rc(1) < 0.0) {
-      printf("cctk_iteration = %i,  dir = %i,  ijk = %i, %i, %i, "
+      printf("cctk_iteration = %i,  dir_i = %i,  ijk = %i, %i, %i, "
              "x, y, z = %16.8e, %16.8e, %16.8e.\n",
-             cctk_iteration, dir, p.i, p.j, p.k, p.x, p.y, p.z);
-      printf("  fluxdenss = %16.8e,\n", fluxdenss(dir)(p.I));
-      printf("  fluxmoms  = %16.8e, %16.8e, %16.8e,\n", fluxmomxs(dir)(p.I),
-             fluxmomys(dir)(p.I), fluxmomzs(dir)(p.I));
-      printf("  fluxtaus  = %16.8e,\n", fluxtaus(dir)(p.I));
-      printf("  fluxBs    = %16.8e, %16.8e, %16.8e\n", fluxBxs(dir)(p.I),
-             fluxBys(dir)(p.I), fluxBzs(dir)(p.I));
+             cctk_iteration, dir_i, p.i, p.j, p.k, p.x, p.y, p.z);
+      printf("  fluxdenss = %16.8e,\n", fluxdenss(dir_i)(p.I));
+      printf("  fluxmoms  = %16.8e, %16.8e, %16.8e,\n", fluxmomxs(dir_i)(p.I),
+             fluxmomys(dir_i)(p.I), fluxmomzs(dir_i)(p.I));
+      printf("  fluxtaus  = %16.8e,\n", fluxtaus(dir_i)(p.I));
+      printf("  fluxBs    = %16.8e, %16.8e, %16.8e\n", fluxBxs(dir_i)(p.I),
+             fluxBys(dir_i)(p.I), fluxBzs(dir_i)(p.I));
       printf("  flux_denss = %16.8e, %16.8e,\n", flux_dens(0), flux_dens(1));
       printf("  flux_moms  = %16.8e, %16.8e, %16.8e, %16.8e, %16.8e, %16.8e,\n",
              flux_moms(0)(0), flux_moms(0)(1), flux_moms(1)(0), flux_moms(1)(1),
@@ -656,17 +657,17 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
       printf("  press_rc = %16.8e, %16.8e \n", press_rc(0), press_rc(1));
       printf("  eps_rc   = %16.8e, %16.8e \n", eps_rc(0), eps_rc(1));
       printf("  rho = %16.8e, %16.8e, %16.8e, %16.8e, %16.8e, %16.8e;\n",
-             rho(p.I - p.DI[dir] * 3), rho(p.I - p.DI[dir] * 2),
-             rho(p.I - p.DI[dir]), rho(p.I), rho(p.I + p.DI[dir]),
-             rho(p.I + p.DI[dir] * 2));
+             rho(p.I - p.DI[dir_i] * 3), rho(p.I - p.DI[dir_i] * 2),
+             rho(p.I - p.DI[dir_i]), rho(p.I), rho(p.I + p.DI[dir_i]),
+             rho(p.I + p.DI[dir_i] * 2));
       printf("  press = %16.8e, %16.8e, %16.8e, %16.8e, %16.8e, %16.8e;\n",
-             press(p.I - p.DI[dir] * 3), press(p.I - p.DI[dir] * 2),
-             press(p.I - p.DI[dir]), press(p.I), press(p.I + p.DI[dir]),
-             press(p.I + p.DI[dir] * 2));
+             press(p.I - p.DI[dir_i] * 3), press(p.I - p.DI[dir_i] * 2),
+             press(p.I - p.DI[dir_i]), press(p.I), press(p.I + p.DI[dir_i]),
+             press(p.I + p.DI[dir_i] * 2));
       printf("  eps   = %16.8e, %16.8e, %16.8e, %16.8e, %16.8e, %16.8e;\n",
-             eps(p.I - p.DI[dir] * 3), eps(p.I - p.DI[dir] * 2),
-             eps(p.I - p.DI[dir]), eps(p.I), eps(p.I + p.DI[dir]),
-             eps(p.I + p.DI[dir] * 2));
+             eps(p.I - p.DI[dir_i] * 3), eps(p.I - p.DI[dir_i] * 2),
+             eps(p.I - p.DI[dir_i]), eps(p.I), eps(p.I + p.DI[dir_i]),
+             eps(p.I + p.DI[dir_i] * 2));
       printf("  alp_avg, beta_avg = %16.8e, %16.8e, %16.8e, %16.8e,\n", alp_avg,
              betas_avg(0), betas_avg(1), betas_avg(2));
       printf("  g_avg = %16.8e, %16.8e, %16.8e, %16.8e, %16.8e, %16.8e.\n",
@@ -689,8 +690,8 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
     CCTK_REAL ap, am;
     maxspeeds_from_lambdas(lambda, ap, am);
 
-    ap_face(dir)(p.I) = ap;
-    am_face(dir)(p.I) = am;
+    ap_face(dir_i)(p.I) = ap;
+    am_face(dir_i)(p.I) = am;
 
     const CCTK_REAL vjL = vtildes_rc(dir_j)(0);
     const CCTK_REAL vjR = vtildes_rc(dir_j)(1);
@@ -699,8 +700,8 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
     const CCTK_REAL vj_face = avg_upwind(vjL, vjR, ap, am);
     const CCTK_REAL vk_face = avg_upwind(vkL, vkR, ap, am);
 
-    vbar_j(dir)(p.I) = vj_face;
-    vbar_k(dir)(p.I) = vk_face;
+    vbar_j(dir_i)(p.I) = vj_face;
+    vbar_k(dir_i)(p.I) = vk_face;
 
     /* End code for upwindCT */
   });
