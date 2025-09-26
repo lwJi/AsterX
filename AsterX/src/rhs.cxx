@@ -15,16 +15,6 @@ using namespace AsterUtils;
 
 enum class vector_potential_gauge_t { algebraic, generalized_lorentz };
 
-template <typename T>
-CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE static inline T
-hll_upwind(T uL, T uR, T fL, T fR, T ap, T am) noexcept {
-  const T s = ap + am;
-  if (s <= T(1e-14)) {
-    return T(0.5) * (fL + fR);
-  }
-  return (ap * fL + am * fR - ap * am * (uR - uL)) / s;
-}
-
 template <int i, vector_potential_gauge_t gauge, bool use_uct>
 void CalcRHSofAvec_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
                         const reconstruct_params_t reconstruct_params) {

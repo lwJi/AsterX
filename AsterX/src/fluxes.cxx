@@ -32,34 +32,6 @@ enum class flux_t { LxF, HLLE };
 enum class eos_3param { IdealGas, Hybrid, Tabulated };
 enum class rec_var_t { v_vec, z_vec, s_vec };
 
-template <typename T>
-CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE static inline void
-maxspeeds_from_lambdas(const vec<vec<T, 4>, 2> &lambda, T &ap, T &am) {
-  T lmax = T(0);
-  T lmin = T(0);
-#pragma unroll
-  for (int s = 0; s < 2; ++s) {
-#pragma unroll
-    for (int m = 0; m < 4; ++m) {
-      const T lm = lambda(s)(m);
-      lmax = fmax(lmax, lm);
-      lmin = fmin(lmin, lm);
-    }
-  }
-  ap = fmax(T(0), lmax);
-  am = fmax(T(0), -lmin);
-}
-
-template <typename T>
-CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE static inline T
-avg_upwind(T uL, T uR, T ap, T am) noexcept {
-  const T s = ap + am;
-  if (s <= T(1e-14)) {
-    return T(0.5) * (uL + uR);
-  }
-  return (ap * uL + am * uR) / s;
-}
-
 // Calculate the fluxes in direction `dir`. This function is more
 // complex because it has to handle any direction, but as reward,
 // there is only one function, not three.

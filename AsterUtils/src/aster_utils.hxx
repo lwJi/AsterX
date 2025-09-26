@@ -164,6 +164,46 @@ calc_avg_neighbors(const vec<T, D> flag, const vec<T, D> u_nbs,
          CCTK_REAL(D);
 }
 
+// upwind-CT related
+
+template <typename T>
+CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE static inline void
+maxspeeds_from_lambdas(const vec<vec<T, 4>, 2> &lambda, T &ap, T &am) {
+  T lmax = T(0);
+  T lmin = T(0);
+#pragma unroll
+  for (int s = 0; s < 2; ++s) {
+#pragma unroll
+    for (int m = 0; m < 4; ++m) {
+      const T lm = lambda(s)(m);
+      lmax = fmax(lmax, lm);
+      lmin = fmin(lmin, lm);
+    }
+  }
+  ap = fmax(T(0), lmax);
+  am = fmax(T(0), -lmin);
+}
+
+template <typename T>
+CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE static inline T
+avg_upwind(T uL, T uR, T ap, T am) noexcept {
+  const T s = ap + am;
+  if (s <= T(1e-14)) {
+    return T(0.5) * (uL + uR);
+  }
+  return (ap * uL + am * uR) / s;
+}
+
+template <typename T>
+CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE static inline T
+hll_upwind(T uL, T uR, T fL, T fR, T ap, T am) noexcept {
+  const T s = ap + am;
+  if (s <= T(1e-14)) {
+    return T(0.5) * (fL + fR);
+  }
+  return (ap * fL + am * fR - ap * am * (uR - uL)) / s;
+}
+
 } // namespace AsterUtils
 
 #endif // ASTER_UTILS_HXX
