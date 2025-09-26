@@ -46,11 +46,11 @@ void CalcRHSofAvec_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
   const vec<GF3D2<const CCTK_REAL>, dim> am_face{amin_xface, amin_yface,
                                                  amin_zface};
   // j-comp reconstructed in k-dir
-  const vec<GF3D2<const CCTK_REAL>, dim> vbars_j_reck{
-      vbar_y_zface, vbar_z_xface, vbar_x_yface};
+  const vec<GF3D2<const CCTK_REAL>, dim> vbars_j_krc{vbar_y_zface, vbar_z_xface,
+                                                     vbar_x_yface};
   // k-comp reconstructed in j-dir
-  const vec<GF3D2<const CCTK_REAL>, dim> vbars_k_recj{
-      vbar_z_yface, vbar_x_zface, vbar_y_xface};
+  const vec<GF3D2<const CCTK_REAL>, dim> vbars_k_jrc{vbar_z_yface, vbar_x_zface,
+                                                     vbar_y_xface};
 
   const vec<GF3D2<CCTK_REAL>, dim> gf_Avec_rhs{Avec_x_rhs, Avec_y_rhs,
                                                Avec_z_rhs};
@@ -65,29 +65,29 @@ void CalcRHSofAvec_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
         grid.nghostzones,
         [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
           // reconstruct in k-dir
-          const vec<CCTK_REAL, 2> dBstag_j_reck_rc{
+          const vec<CCTK_REAL, 2> dBstag_j_krc{
               reconstruct(dB_stag(j), p, reconstruction, k, false, false, press,
                           gf_vels(k), reconstruct_params)};
-          const vec<CCTK_REAL, 2> vbars_k_recj_reck_rc{
-              reconstruct(vbars_k_recj(i), p, reconstruction, k, false, false,
+          const vec<CCTK_REAL, 2> vbars_k_jrc_krc{
+              reconstruct(vbars_k_jrc(i), p, reconstruction, k, false, false,
                           press, gf_vels(k), reconstruct_params)};
           // reconstruct in j-dir
-          const vec<CCTK_REAL, 2> dBstag_k_recj_rc{
+          const vec<CCTK_REAL, 2> dBstag_k_jrc{
               reconstruct(dB_stag(k), p, reconstruction, j, false, false, press,
                           gf_vels(j), reconstruct_params)};
-          const vec<CCTK_REAL, 2> vbars_j_reck_recj_rc{
-              reconstruct(vbars_j_reck(i), p, reconstruction, j, false, false,
+          const vec<CCTK_REAL, 2> vbars_j_krc_jrc{
+              reconstruct(vbars_j_krc(i), p, reconstruction, j, false, false,
                           press, gf_vels(j), reconstruct_params)};
 
-          const CCTK_REAL BjL = dBstag_j_reck_rc(0);
-          const CCTK_REAL BjR = dBstag_j_reck_rc(1);
-          const CCTK_REAL vkL = vbars_k_recj_reck_rc(0);
-          const CCTK_REAL vkR = vbars_k_recj_reck_rc(1);
+          const CCTK_REAL BjL = dBstag_j_krc(0);
+          const CCTK_REAL BjR = dBstag_j_krc(1);
+          const CCTK_REAL vkL = vbars_k_jrc_krc(0);
+          const CCTK_REAL vkR = vbars_k_jrc_krc(1);
 
-          const CCTK_REAL BkL = dBstag_k_recj_rc(0);
-          const CCTK_REAL BkR = dBstag_k_recj_rc(1);
-          const CCTK_REAL vjL = vbars_j_reck_recj_rc(0);
-          const CCTK_REAL vjR = vbars_j_reck_recj_rc(1);
+          const CCTK_REAL BkL = dBstag_k_jrc(0);
+          const CCTK_REAL BkR = dBstag_k_jrc(1);
+          const CCTK_REAL vjL = vbars_j_krc_jrc(0);
+          const CCTK_REAL vjR = vbars_j_krc_jrc(1);
 
           const CCTK_REAL ap_k = ap_face(k)(p.I);
           const CCTK_REAL am_k = am_face(k)(p.I);
