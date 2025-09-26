@@ -32,6 +32,34 @@ enum class flux_t { LxF, HLLE };
 enum class eos_3param { IdealGas, Hybrid, Tabulated };
 enum class rec_var_t { v_vec, z_vec, s_vec };
 
+template <typename T>
+CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE static inline void
+maxspeeds_from_lambdas(const vec<vec<T, 4>, 2> &lambda, T &ap, T &am) {
+  T lmax = T(0);
+  T lmin = T(0);
+#pragma unroll
+  for (int s = 0; s < 2; ++s) {
+#pragma unroll
+    for (int m = 0; m < 4; ++m) {
+      const T lm = lambda(s)(m);
+      lmax = fmax(lmax, lm);
+      lmin = fmin(lmin, lm);
+    }
+  }
+  ap = fmax(T(0), lmax);
+  am = fmax(T(0), -lmin);
+}
+
+template <typename T>
+CCTK_DEVICE CCTK_ATTRIBUTE_ALWAYS_INLINE static inline T
+avg_upwind(T uL, T uR, T ap, T am) noexcept {
+  const T s = ap + am;
+  if (s <= T(1e-14)) {
+    return T(0.5) * (uL + uR);
+  }
+  return (ap * uL + am * uR) / s;
+}
+
 // Calculate the fluxes in direction `dir`. This function is more
 // complex because it has to handle any direction, but as reward,
 // there is only one function, not three.
@@ -90,12 +118,12 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
   const smat<GF3D2<const CCTK_REAL>, dim> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
 
   /* grid functions for Upwind CT */
-  const vec<GF3D2<CCTK_REAL>, dim> vbars_one{vbar_y_xface, vbar_z_yface,
-                                             vbar_x_zface};
-  const vec<GF3D2<CCTK_REAL>, dim> vbars_two{vbar_z_xface, vbar_x_yface,
-                                             vbar_y_zface};
-  const vec<GF3D2<CCTK_REAL>, dim> amax{amax_xface, amax_yface, amax_zface};
-  const vec<GF3D2<CCTK_REAL>, dim> amin{amin_xface, amin_yface, amin_zface};
+  const vec<GF3D2<CCTK_REAL>, dim> vbar_j{vbar_y_xface, vbar_z_yface,
+                                          vbar_x_zface};
+  const vec<GF3D2<CCTK_REAL>, dim> vbar_k{vbar_z_xface, vbar_x_yface,
+                                          vbar_y_zface};
+  const vec<GF3D2<CCTK_REAL>, dim> ap_face{amax_xface, amax_yface, amax_zface};
+  const vec<GF3D2<CCTK_REAL>, dim> am_face{amin_xface, amin_yface, amin_zface};
 
   static_assert(dir >= 0 && dir < 3, "");
 
@@ -153,10 +181,10 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
         fluxBys(dir)(p.I) = 0;
         fluxBzs(dir)(p.I) = 0;
 
-        amax(dir)(p.I) = 0;
-        amin(dir)(p.I) = 0;
-        vbars_one(dir)(p.I) = 0;
-        vbars_two(dir)(p.I) = 0;
+        ap_face(dir)(p.I) = 0;
+        am_face(dir)(p.I) = 0;
+        vbar_j(dir)(p.I) = 0;
+        vbar_k(dir)(p.I) = 0;
       });
 
   grid.loop_mix_device<face_centred[0], face_centred[1],
@@ -658,20 +686,21 @@ void CalcFlux(CCTK_ARGUMENTS, EOSType *eos_3p, const rec_var_t rec_var,
 
     /* Begin code for upwindCT */
 
-    amax(dir)(p.I) = max({CCTK_REAL(0), lambda(0)(0), lambda(0)(1),
-                          lambda(0)(2), lambda(0)(3), lambda(1)(0),
-                          lambda(1)(1), lambda(1)(2), lambda(1)(3)});
+    CCTK_REAL ap, am;
+    maxspeeds_from_lambdas(lambda, ap, am);
 
-    amin(dir)(p.I) = -1 * (min({CCTK_REAL(0), lambda(0)(0), lambda(0)(1),
-                                lambda(0)(2), lambda(0)(3), lambda(1)(0),
-                                lambda(1)(1), lambda(1)(2), lambda(1)(3)}));
+    ap_face(dir)(p.I) = ap;
+    am_face(dir)(p.I) = am;
 
-    vbars_one(dir)(p.I) = (amax(dir)(p.I) * vtildes_rc(dir_j)(0) +
-                           amin(dir)(p.I) * vtildes_rc(dir_j)(1)) /
-                          (amax(dir)(p.I) + amin(dir)(p.I));
-    vbars_two(dir)(p.I) = (amax(dir)(p.I) * vtildes_rc(dir_k)(0) +
-                           amin(dir)(p.I) * vtildes_rc(dir_k)(1)) /
-                          (amax(dir)(p.I) + amin(dir)(p.I));
+    const CCTK_REAL vjL = vtildes_rc(dir_j)(0);
+    const CCTK_REAL vjR = vtildes_rc(dir_j)(1);
+    const CCTK_REAL vkL = vtildes_rc(dir_k)(0);
+    const CCTK_REAL vkR = vtildes_rc(dir_k)(1);
+    const CCTK_REAL vj_face = avg_upwind(vjL, vjR, ap, am);
+    const CCTK_REAL vk_face = avg_upwind(vkL, vkR, ap, am);
+
+    vbar_j(dir)(p.I) = vj_face;
+    vbar_k(dir)(p.I) = vk_face;
 
     /* End code for upwindCT */
   });
