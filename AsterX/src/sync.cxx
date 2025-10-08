@@ -90,4 +90,20 @@ extern "C" void AsterX_ApplyOuterBCOnFluxes(CCTK_ARGUMENTS) {
   ApplyOuterBC(CCTK_PASS_CTOC, groups);
 }
 
+extern "C" void AsterX_RestrictAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_PARAMETERS;
+
+  std::vector<int> groups;
+
+  groups.push_back(CCTK_GroupIndex("AsterX::G"));
+  groups.push_back(CCTK_GroupIndex("AsterX::Fx_stag"));
+  groups.push_back(CCTK_GroupIndex("AsterX::Fy_stag"));
+  groups.push_back(CCTK_GroupIndex("AsterX::Fz_stag"));
+
+  active_levels->loop_fine_to_coarse([&](const auto &leveldata) {
+    if (leveldata.level < ghext->num_levels() - 1)
+      RestrictNoPoison(cctkGH, leveldata.level, groups);
+  });
+}
+
 } // namespace AsterX
