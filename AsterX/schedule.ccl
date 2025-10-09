@@ -43,8 +43,9 @@ SCHEDULE GROUP AsterX_InitialGroup AT initial IN ODESolvers_Initial AFTER HydroB
 SCHEDULE AsterX_ComputedBstagFromA IN AsterX_InitialGroup
 {
   LANG: C
-  READS: Avec_x(everywhere) Avec_y(everywhere) Avec_z(everywhere)
-  WRITES: dBx_stag(everywhere) dBy_stag(everywhere) dBz_stag(everywhere)
+  READS: Avec_x(interior) Avec_y(interior) Avec_z(interior)
+  WRITES: dBx_stag(interior) dBy_stag(interior) dBz_stag(interior)
+  SYNC: dBx_stag dBy_stag dBz_stag
 } "Calculate dBstag from curl of A"
 
 SCHEDULE AsterX_ComputedBFromdBstag IN AsterX_InitialGroup AFTER AsterX_ComputedBstagFromA
@@ -161,8 +162,9 @@ SCHEDULE GROUP AsterX_Con2PrimGroup IN ODESolvers_PostStep BEFORE TmunuBaseX_Set
 SCHEDULE AsterX_ComputedBstagFromA IN AsterX_Con2PrimGroup
 {
   LANG: C
-  READS: Avec_x(everywhere) Avec_y(everywhere) Avec_z(everywhere)
-  WRITES: dBx_stag(everywhere) dBy_stag(everywhere) dBz_stag(everywhere)
+  READS: Avec_x(interior) Avec_y(interior) Avec_z(interior)
+  WRITES: dBx_stag(interior) dBy_stag(interior) dBz_stag(interior)
+  SYNC: dBx_stag dBy_stag dBz_stag
 } "Calculate dBstag from curl of A"
 
 SCHEDULE AsterX_ComputedBFromdBstag IN AsterX_Con2PrimGroup AFTER AsterX_ComputedBstagFromA
