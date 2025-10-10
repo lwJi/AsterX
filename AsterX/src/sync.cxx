@@ -114,4 +114,16 @@ extern "C" void AsterX_RestrictAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
   });
 }
 
+extern "C" void AsterX_ProlongatedBstag(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_PARAMETERS;
+
+  std::vector<int> groups;
+
+  groups.push_back(CCTK_GroupIndex("AsterX::dBx_stag"));
+  groups.push_back(CCTK_GroupIndex("AsterX::dBy_stag"));
+  groups.push_back(CCTK_GroupIndex("AsterX::dBz_stag"));
+
+  SyncGroupsByDirIProlongateOnly(cctkGH, groups.size(), groups.data(), nullptr);
+}
+
 } // namespace AsterX
