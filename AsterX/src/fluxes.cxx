@@ -842,10 +842,14 @@ void CalcE_impl(CCTK_ARGUMENTS, const reconstruction_t reconstruction,
           const CCTK_REAL vjL = vbar_j_kface_jrc(0);
           const CCTK_REAL vjR = vbar_j_kface_jrc(1);
 
-          const CCTK_REAL ap_k = ap_face(k)(p.I);
-          const CCTK_REAL am_k = am_face(k)(p.I);
-          const CCTK_REAL ap_j = ap_face(j)(p.I);
-          const CCTK_REAL am_j = am_face(j)(p.I);
+          const CCTK_REAL ap_k =
+              0.5 * (ap_face(k)(p.I) + ap_face(k)(p.I - p.DI[j]));
+          const CCTK_REAL am_k =
+              0.5 * (am_face(k)(p.I) + am_face(k)(p.I - p.DI[j]));
+          const CCTK_REAL ap_j =
+              0.5 * (ap_face(j)(p.I) + ap_face(j)(p.I - p.DI[k]));
+          const CCTK_REAL am_j =
+              0.5 * (am_face(j)(p.I) + am_face(j)(p.I - p.DI[k]));
 
           gf_E(i)(p.I) =
               hll_upwind(BjL, BjR, vkL * BjL, vkR * BjR, ap_k, am_k) -
