@@ -297,27 +297,6 @@ SCHEDULE AsterX_RHS IN AsterX_RHSGroup AFTER AsterX_SourceTerms
 } "Update the RHS of the hydro equations with the flux contributions"
 
 
-
-if(interpolate_failed_c2p)
-{
-  SCHEDULE AsterX_Con2Prim_Interpolate_Failed IN AsterX_RHSGroup BEFORE AsterX_Fluxes
-  {
-    LANG: C
-    READS: ADMBaseX::metric(interior)
-    READS: con2prim_flag(interior)
-    READS: HydroBaseX::rho(interior) HydroBaseX::vel(interior) HydroBaseX::eps(interior) HydroBaseX::press(interior) HydroBaseX::Bvec(interior)
-    READS: saved_prims(interior)
-    READS: dens(interior) tau(interior) mom(interior)
-    WRITES: con2prim_flag(interior)
-    WRITES: HydroBaseX::rho(interior) HydroBaseX::vel(interior) HydroBaseX::eps(interior) HydroBaseX::press(interior)
-    WRITES: saved_prims(interior)
-    WRITES: dens(interior) tau(interior) mom(interior)
-    SYNC: con2prim_flag
-    SYNC: HydroBaseX::rho HydroBaseX::vel HydroBaseX::eps HydroBaseX::press
-    SYNC: saved_prims
-    SYNC: dens tau mom
-  } "Interpolate those grid points where con2prim failed"
-}
   
 if(update_tmunu){
   SCHEDULE AsterX_Tmunu IN TmunuBaseX_AddToTmunu

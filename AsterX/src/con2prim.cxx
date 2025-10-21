@@ -503,6 +503,113 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
   cctk_grid.loop_int_device<1, 1, 1>(grid.nghostzones, c2p_impl);
 
   cctk_grid.loop_ghosts_device<1, 1, 1>(grid.nghostzones, c2p_impl);
+
+  if (interpolate_failed_c2p) {
+    grid.loop_int_device<1, 1, 1>(
+        grid.nghostzones,
+        [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+          if (con2prim_flag(p.I) == C2P_FAIL) {
+            const smat<CCTK_REAL, 3> glo([&](int i, int j) ARITH_INLINE {
+              return calc_avg_v2c(gf_g(i, j), p);
+            });
+
+            const vec<CCTK_REAL, 6> flag_nbs = get_neighbors(con2prim_flag, p);
+            const vec<CCTK_REAL, 6> w_nbs([&](int k) ARITH_INLINE {
+              return (flag_nbs(k) == C2P_FAIL) ? 0.0 : 1.0;
+            });
+
+            const vec<CCTK_REAL, 6> rho_nbs = get_neighbors(rho, p);
+            const vec<CCTK_REAL, 6> velx_nbs = get_neighbors(velx, p);
+            const vec<CCTK_REAL, 6> vely_nbs = get_neighbors(vely, p);
+            const vec<CCTK_REAL, 6> velz_nbs = get_neighbors(velz, p);
+            const vec<CCTK_REAL, 6> eps_nbs = get_neighbors(eps, p);
+            const vec<CCTK_REAL, 6> Ye_nbs = get_neighbors(Ye, p);
+
+            const vec<CCTK_REAL, 6> saved_rho_nbs = get_neighbors(saved_rho, p);
+            const vec<CCTK_REAL, 6> saved_velx_nbs =
+                get_neighbors(saved_velx, p);
+            const vec<CCTK_REAL, 6> saved_vely_nbs =
+                get_neighbors(saved_vely, p);
+            const vec<CCTK_REAL, 6> saved_velz_nbs =
+                get_neighbors(saved_velz, p);
+            const vec<CCTK_REAL, 6> saved_eps_nbs = get_neighbors(saved_eps, p);
+            const vec<CCTK_REAL, 6> saved_Ye_nbs = get_neighbors(saved_Ye, p);
+
+            // CCTK_REAL sum_nbs =
+            //     sum<6>([&](int i) ARITH_INLINE { return w_nbs(i); });
+            // assert(sum_nbs > 0);
+
+            CCTK_REAL rho_avg =
+                calc_avg_neighbors(w_nbs, rho_nbs, saved_rho_nbs);
+            CCTK_REAL velx_avg =
+                calc_avg_neighbors(w_nbs, velx_nbs, saved_velx_nbs);
+            CCTK_REAL vely_avg =
+                calc_avg_neighbors(w_nbs, vely_nbs, saved_vely_nbs);
+            CCTK_REAL velz_avg =
+                calc_avg_neighbors(w_nbs, velz_nbs, saved_velz_nbs);
+            CCTK_REAL eps_avg =
+                calc_avg_neighbors(w_nbs, eps_nbs, saved_eps_nbs);
+            CCTK_REAL Ye_avg = calc_avg_neighbors(w_nbs, Ye_nbs, saved_Ye_nbs);
+
+            CCTK_REAL press_avg =
+                eos_3p->press_from_valid_rho_eps_ye(rho_avg, eps_avg, Ye_avg);
+            CCTK_REAL temp_avg =
+                eos_3p->temp_from_valid_rho_eps_ye(rho_avg, eps_avg, Ye_avg);
+            CCTK_REAL entropy_avg =
+                eos_3p->kappa_from_valid_rho_eps_ye(rho_avg, eps_avg, Ye_avg);
+
+            rho(p.I) = rho_avg;
+            velx(p.I) = velx_avg;
+            vely(p.I) = vely_avg;
+            velz(p.I) = velz_avg;
+            eps(p.I) = eps_avg;
+            Ye(p.I) = Ye_avg;
+
+            press(p.I) = press_avg;
+            temperature(p.I) = temp_avg;
+            entropy(p.I) = entropy_avg;
+
+            // calculate wlor
+            vec<CCTK_REAL, 3> v_up{velx_avg, vely_avg, velz_avg};
+            vec<CCTK_REAL, 3> v_low = calc_contraction(glo, v_up);
+            CCTK_REAL zsq{0.0};
+
+            const CCTK_REAL vsq = calc_contraction(v_low, v_up);
+            if (vsq >= 1.0) {
+              CCTK_REAL wlim = sqrt(1.0 + vw_lim * vw_lim);
+              CCTK_REAL vlim = vw_lim / wlim;
+              v_up *= vlim / sqrt(vsq);
+              v_low *= vlim / sqrt(vsq);
+              zsq = vw_lim * vw_lim;
+            } else {
+              zsq = vsq / (1.0 - vsq);
+            }
+
+            CCTK_REAL wlor = sqrt(1.0 + zsq);
+
+            zvec_x(p.I) = wlor * velx_avg;
+            zvec_y(p.I) = wlor * vely_avg;
+            zvec_z(p.I) = wlor * velz_avg;
+
+            svec_x(p.I) = (rho_avg + rho_avg * eps_avg + press_avg) * wlor *
+                          wlor * velx_avg;
+            svec_y(p.I) = (rho_avg + rho_avg * eps_avg + press_avg) * wlor *
+                          wlor * vely_avg;
+            svec_z(p.I) = (rho_avg + rho_avg * eps_avg + press_avg) * wlor *
+                          wlor * velz_avg;
+
+            /* reset flag */
+            con2prim_flag(p.I) = C2P_AVG;
+
+            saved_rho(p.I) = rho_avg;
+            saved_velx(p.I) = velx_avg;
+            saved_vely(p.I) = vely_avg;
+            saved_velz(p.I) = velz_avg;
+            saved_eps(p.I) = eps_avg;
+            saved_Ye(p.I) = Ye_avg;
+          }
+        });
+  }
 }
 
 extern "C" void AsterX_Con2Prim(CCTK_ARGUMENTS) {
@@ -550,68 +657,6 @@ extern "C" void AsterX_Con2Prim(CCTK_ARGUMENTS) {
   default:
     assert(0);
   }
-}
-
-extern "C" void AsterX_Con2Prim_Interpolate_Failed(CCTK_ARGUMENTS) {
-  DECLARE_CCTK_ARGUMENTSX_AsterX_Con2Prim_Interpolate_Failed;
-  DECLARE_CCTK_PARAMETERS;
-
-  const smat<GF3D2<const CCTK_REAL>, 3> gf_g{gxx, gxy, gxz, gyy, gyz, gzz};
-  const vec<GF3D2<CCTK_REAL>, 6> gf_prims{rho, velx, vely, velz, eps, press};
-  const vec<GF3D2<CCTK_REAL>, 5> gf_cons{dens, momx, momy, momz, tau};
-
-  grid.loop_int_device<1, 1, 1>(
-      grid.nghostzones,
-      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        if (con2prim_flag(p.I) == C2P_FAIL) {
-
-          const vec<CCTK_REAL, 6> flag_nbs = get_neighbors(con2prim_flag, p);
-          const vec<CCTK_REAL, 6> rho_nbs = get_neighbors(rho, p);
-          const vec<CCTK_REAL, 6> velx_nbs = get_neighbors(velx, p);
-          const vec<CCTK_REAL, 6> vely_nbs = get_neighbors(vely, p);
-          const vec<CCTK_REAL, 6> velz_nbs = get_neighbors(velz, p);
-          const vec<CCTK_REAL, 6> eps_nbs = get_neighbors(eps, p);
-          const vec<CCTK_REAL, 6> saved_rho_nbs = get_neighbors(saved_rho, p);
-          const vec<CCTK_REAL, 6> saved_velx_nbs = get_neighbors(saved_velx, p);
-          const vec<CCTK_REAL, 6> saved_vely_nbs = get_neighbors(saved_vely, p);
-          const vec<CCTK_REAL, 6> saved_velz_nbs = get_neighbors(saved_velz, p);
-          const vec<CCTK_REAL, 6> saved_eps_nbs = get_neighbors(saved_eps, p);
-
-          CCTK_REAL sum_nbs =
-              sum<6>([&](int i) ARITH_INLINE { return flag_nbs(i); });
-          assert(sum_nbs > 0);
-          rho(p.I) = calc_avg_neighbors(flag_nbs, rho_nbs, saved_rho_nbs);
-          velx(p.I) = calc_avg_neighbors(flag_nbs, velx_nbs, saved_velx_nbs);
-          vely(p.I) = calc_avg_neighbors(flag_nbs, vely_nbs, saved_vely_nbs);
-          velz(p.I) = calc_avg_neighbors(flag_nbs, velz_nbs, saved_velz_nbs);
-          eps(p.I) = calc_avg_neighbors(flag_nbs, eps_nbs, saved_eps_nbs);
-          press(p.I) = (gl_gamma - 1) * eps(p.I) * rho(p.I);
-
-          /* reset flag */
-          con2prim_flag(p.I) = C2P_AVG;
-
-          // set to atmos
-          /*
-          if (rho(p.I) <= rho_abs_min * (1 + atmo_tol))
-          {
-            const smat<CCTK_REAL, 3> g3_avg([&](int i, int j) ARITH_INLINE
-                                            { return calc_avg_v2c(gf_g(i, j),
-          p); }); const CCTK_REAL sqrtg = sqrt(calc_det(g3_avg)); const
-          vec<CCTK_REAL, 3> Bup{Bvecx(p.I), Bvecy(p.I), Bvecz(p.I)}; const
-          vec<CCTK_REAL, 3> Blow = calc_contraction(g3_avg, Bup); const
-          CCTK_REAL Bsq = calc_contraction(Bup, Blow);
-
-            set_to_atmosphere(rho_abs_min, poly_K, gamma, sqrtg, Bsq, gf_prims,
-                              gf_cons, p);
-          };
-          */
-          saved_rho(p.I) = rho(p.I);
-          saved_velx(p.I) = velx(p.I);
-          saved_vely(p.I) = vely(p.I);
-          saved_velz(p.I) = velz(p.I);
-          saved_eps(p.I) = eps(p.I);
-        }
-      });
 }
 
 } // namespace AsterX
