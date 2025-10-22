@@ -6,9 +6,9 @@
 #include <cctk_Parameters.h>
 
 #include <mat.hxx>
-#include <vec.hxx>
-#include <sum.hxx>
 #include <simd.hxx>
+#include <sum.hxx>
+#include <vec.hxx>
 
 #include <algorithm>
 #include <array>
@@ -156,12 +156,10 @@ get_neighbors(const GF3D2<T> &gf, const PointDesc &p) {
 
 template <typename T, int D>
 CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline T
-calc_avg_neighbors(const vec<T, D> flag, const vec<T, D> u_nbs,
-                   const vec<T, D> u_saved_nbs) {
-  return sum<D>([&](int i) ARITH_INLINE {
-           return (flag(i) * u_nbs(i) + (1.0 - flag(i)) * u_saved_nbs(i));
-         }) /
-         CCTK_REAL(D);
+calc_avg_neighbors(const vec<T, D> w_nbs, const vec<T, D> u_nbs,
+                   const T w_sum) {
+  return sum<D>([&](int i) ARITH_INLINE { return (w_nbs(i) * u_nbs(i)); }) /
+         w_sum;
 }
 
 // upwind-CT related

@@ -505,7 +505,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
   cctk_grid.loop_ghosts_device<1, 1, 1>(grid.nghostzones, c2p_impl);
 
   if (interpolate_failed_c2p) {
-    grid.loop_int_device<1, 1, 1>(
+    grid.loop_allm1_device<1, 1, 1>(
         grid.nghostzones,
         [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
           if (con2prim_flag(p.I) == C2P_FAIL) {
@@ -525,31 +525,16 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
             const vec<CCTK_REAL, 6> eps_nbs = get_neighbors(eps, p);
             const vec<CCTK_REAL, 6> Ye_nbs = get_neighbors(Ye, p);
 
-            const vec<CCTK_REAL, 6> saved_rho_nbs = get_neighbors(saved_rho, p);
-            const vec<CCTK_REAL, 6> saved_velx_nbs =
-                get_neighbors(saved_velx, p);
-            const vec<CCTK_REAL, 6> saved_vely_nbs =
-                get_neighbors(saved_vely, p);
-            const vec<CCTK_REAL, 6> saved_velz_nbs =
-                get_neighbors(saved_velz, p);
-            const vec<CCTK_REAL, 6> saved_eps_nbs = get_neighbors(saved_eps, p);
-            const vec<CCTK_REAL, 6> saved_Ye_nbs = get_neighbors(saved_Ye, p);
-
-            // CCTK_REAL sum_nbs =
-            //     sum<6>([&](int i) ARITH_INLINE { return w_nbs(i); });
+            const CCTK_REAL sum_nbs =
+                sum<6>([&](int i) ARITH_INLINE { return w_nbs(i); });
             // assert(sum_nbs > 0);
 
-            CCTK_REAL rho_avg =
-                calc_avg_neighbors(w_nbs, rho_nbs, saved_rho_nbs);
-            CCTK_REAL velx_avg =
-                calc_avg_neighbors(w_nbs, velx_nbs, saved_velx_nbs);
-            CCTK_REAL vely_avg =
-                calc_avg_neighbors(w_nbs, vely_nbs, saved_vely_nbs);
-            CCTK_REAL velz_avg =
-                calc_avg_neighbors(w_nbs, velz_nbs, saved_velz_nbs);
-            CCTK_REAL eps_avg =
-                calc_avg_neighbors(w_nbs, eps_nbs, saved_eps_nbs);
-            CCTK_REAL Ye_avg = calc_avg_neighbors(w_nbs, Ye_nbs, saved_Ye_nbs);
+            CCTK_REAL rho_avg = calc_avg_neighbors(w_nbs, rho_nbs, sum_nbs);
+            CCTK_REAL velx_avg = calc_avg_neighbors(w_nbs, velx_nbs, sum_nbs);
+            CCTK_REAL vely_avg = calc_avg_neighbors(w_nbs, vely_nbs, sum_nbs);
+            CCTK_REAL velz_avg = calc_avg_neighbors(w_nbs, velz_nbs, sum_nbs);
+            CCTK_REAL eps_avg = calc_avg_neighbors(w_nbs, eps_nbs, sum_nbs);
+            CCTK_REAL Ye_avg = calc_avg_neighbors(w_nbs, Ye_nbs, sum_nbs);
 
             CCTK_REAL press_avg =
                 eos_3p->press_from_valid_rho_eps_ye(rho_avg, eps_avg, Ye_avg);
@@ -585,7 +570,7 @@ void AsterX_Con2Prim_typeEoS(CCTK_ARGUMENTS, EOSIDType *eos_1p,
               zsq = vsq / (1.0 - vsq);
             }
 
-            CCTK_REAL wlor = sqrt(1.0 + zsq);
+            const CCTK_REAL wlor = sqrt(1.0 + zsq);
 
             zvec_x(p.I) = wlor * velx_avg;
             zvec_y(p.I) = wlor * vely_avg;
