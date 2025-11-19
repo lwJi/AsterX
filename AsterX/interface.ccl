@@ -78,9 +78,9 @@ CCTK_REAL taurhs TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved inter
 CCTK_REAL DYe_rhs TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Conserved electron fraction RHS"
 CCTK_REAL DEntrhs TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"' "Advected entropy density RHS"
 
-CCTK_REAL Avec_x TYPE=gf CENTERING={cvv} TAGS='rhs="Avec_x_rhs"' "x-component of vector potential"
-CCTK_REAL Avec_y TYPE=gf CENTERING={vcv} TAGS='rhs="Avec_y_rhs"' "y-component of vector potential"
-CCTK_REAL Avec_z TYPE=gf CENTERING={vvc} TAGS='rhs="Avec_z_rhs"' "z-component of vector potential"
+CCTK_REAL Avec_x TYPE=gf CENTERING={cvv} TAGS='rhs="Avec_x_rhs" prolongation_type="hermite" prolongation_order=5' "x-component of vector potential"
+CCTK_REAL Avec_y TYPE=gf CENTERING={vcv} TAGS='rhs="Avec_y_rhs" prolongation_type="hermite" prolongation_order=5' "y-component of vector potential"
+CCTK_REAL Avec_z TYPE=gf CENTERING={vvc} TAGS='rhs="Avec_z_rhs" prolongation_type="hermite" prolongation_order=5' "z-component of vector potential"
 
 CCTK_REAL Avec_x_rhs TYPE=gf CENTERING={cvv} TAGS='checkpoint="no"' "x-component of vector potential RHS"
 CCTK_REAL Avec_y_rhs TYPE=gf CENTERING={vcv} TAGS='checkpoint="no"' "y-component of vector potential RHS"
