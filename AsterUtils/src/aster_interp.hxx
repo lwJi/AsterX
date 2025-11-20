@@ -45,6 +45,19 @@ calc_avg_e2v(const GF3D2<const T> &gf, const PointDesc &p, const int dir) {
   return gf_avg * T(0.5);
 }
 
+template <typename T>
+CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline T
+calc_avg_e2v_hermite(const GF3D2<const T> &gf, const PointDesc &p,
+                     const int dir) {
+  T gf_avg = 0;
+  const vect<T, 6> wt = {+1 / T(96), -9 / T(96), 56 / T(96),
+                         56 / T(96), -9 / T(96), +1 / T(96)};
+  for (int di = 0; di < 6; ++di) {
+    gf_avg += wt[di] * gf(p.I + p.DI[dir] * (di - 3));
+  }
+  return gf_avg;
+}
+
 template <int dir, typename T>
 CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline T
 calc_avg_v2e(const GF3D2<const T> &gf, const PointDesc &p) {

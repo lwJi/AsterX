@@ -960,21 +960,43 @@ extern "C" void AsterX_CalcAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
   CalcE<1>(CCTK_PASS_CTOC, use_uct, reconstruction, reconstruct_params);
   CalcE<2>(CCTK_PASS_CTOC, use_uct, reconstruction, reconstruct_params);
 
-  grid.loop_int_device<0, 0, 0>(
-      grid.nghostzones,
-      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        const vec<CCTK_REAL, 3> A_vert([&](int i) ARITH_INLINE {
-          return calc_avg_e2v(gf_Avecs(i), p, i);
-        });
-        const smat<CCTK_REAL, 3> g(
-            [&](int i, int j) ARITH_INLINE { return gf_g(i, j)(p.I); });
-        const vec<CCTK_REAL, 3> betas(
-            [&](int i) ARITH_INLINE { return gf_beta(i)(p.I); });
-        const CCTK_REAL detg = calc_det(g);
-        const CCTK_REAL sqrtg = sqrt(detg);
+  if (CCTK_EQUALS(interp_method_Avert, "average")) {
+    grid.loop_int_device<0, 0, 0>(
+        grid.nghostzones,
+        [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+          const vec<CCTK_REAL, 3> A_vert([&](int i) ARITH_INLINE {
+            return calc_avg_e2v(gf_Avecs(i), p, i);
+          });
+          const smat<CCTK_REAL, 3> g(
+              [&](int i, int j) ARITH_INLINE { return gf_g(i, j)(p.I); });
+          const vec<CCTK_REAL, 3> betas(
+              [&](int i) ARITH_INLINE { return gf_beta(i)(p.I); });
+          const CCTK_REAL detg = calc_det(g);
+          const CCTK_REAL sqrtg = sqrt(detg);
 
-        G(p.I) = alp(p.I) * Psi(p.I) / sqrtg - calc_contraction(betas, A_vert);
-      });
+          G(p.I) =
+              alp(p.I) * Psi(p.I) / sqrtg - calc_contraction(betas, A_vert);
+        });
+  } else if (CCTK_EQUALS(interp_method_Avert, "hermite")) {
+    grid.loop_int_device<0, 0, 0>(
+        grid.nghostzones,
+        [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+          const vec<CCTK_REAL, 3> A_vert([&](int i) ARITH_INLINE {
+            return calc_avg_e2v_hermite(gf_Avecs(i), p, i);
+          });
+          const smat<CCTK_REAL, 3> g(
+              [&](int i, int j) ARITH_INLINE { return gf_g(i, j)(p.I); });
+          const vec<CCTK_REAL, 3> betas(
+              [&](int i) ARITH_INLINE { return gf_beta(i)(p.I); });
+          const CCTK_REAL detg = calc_det(g);
+          const CCTK_REAL sqrtg = sqrt(detg);
+
+          G(p.I) =
+              alp(p.I) * Psi(p.I) / sqrtg - calc_contraction(betas, A_vert);
+        });
+  } else {
+    CCTK_ERROR("Unknown value for parameter \"interp_method_Avert\"");
+  }
 
   grid.loop_all_device<0, 0, 0>(grid.nghostzones,
                                 [=] CCTK_DEVICE(const PointDesc &p)

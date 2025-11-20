@@ -23,6 +23,12 @@ BOOLEAN prolongate_dbstag "Shall we prolongate dBstag?" STEERABLE=always
 {
 } "yes"
 
+KEYWORD interp_method_Avert "Interpolate vertex centering Avec use which method when constructing G" STEERABLE=always
+{
+  "average" :: ""
+  "hermite" :: ""
+} "average"
+
 KEYWORD flux_type "Flux solver" STEERABLE=always
 {
   "LxF" :: ""
