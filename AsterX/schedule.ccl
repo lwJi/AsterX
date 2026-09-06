@@ -288,7 +288,7 @@ SCHEDULE AsterX_Fluxes IN AsterX_FluxGroup
   WRITES: a_xface(everywhere) a_yface(everywhere) a_zface(everywhere)
 } "Calculate the hydro fluxes"
 
-if(!use_subcycling) {
+if(restrict_fluxes) {
 SCHEDULE AsterX_RestrictFluxes IN AsterX_FluxGroup AFTER AsterX_Fluxes
 {
   LANG: C
@@ -314,7 +314,7 @@ SCHEDULE AsterX_CalcAuxTermsForAvecPsiRHS IN AsterX_FluxGroup AFTER AsterX_Fluxe
   WRITES: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
 } "Calculate the auxiliary terms for the rhs of Avec and Psi"
 
-if(!use_subcycling) {
+if(restrict_fluxes) {
 SCHEDULE AsterX_RestrictAuxTermsForAvecPsiRHS IN AsterX_FluxGroup AFTER AsterX_CalcAuxTermsForAvecPsiRHS
 {
   LANG: C
