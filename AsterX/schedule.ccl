@@ -130,46 +130,6 @@ if (zero_psi) {
   } "Set Psi, time component of 4-vector potential, to zero initially"
 }
 
-################################################################################
-# For bypassing CarpetX NaN guard only:
-#   1. which can be removed if we add new 'where' type corresponding to the new
-#      loops used in CalcAuxTermsForAvecPsiRHS, Fluxes, etc.
-#   2. values set here are meaning less, they should be set somewhere fully
-#      (AsterX_CalcAuxTermsForAvecPsiRHS, Fluxes, etc)
-################################################################################
-
-SCHEDULE GROUP AsterX_TouchNonEvolVarsGroup IN AsterX_InitialGroup AFTER AsterX_Prim2Con_Initial
-{
-} "Touch Non-Evolution Variables to Bypass CarpetX NaN guard"
-
-SCHEDULE GROUP AsterX_TouchNonEvolVarsGroup AT postregrid
-{
-} "Touch Non-Evolution Variables to Bypass CarpetX NaN guard"
-
-SCHEDULE GROUP AsterX_TouchNonEvolVarsGroup AT post_recover_variables
-{
-} "Touch Non-Evolution Variables to Bypass CarpetX NaN guard"
-
-SCHEDULE AsterX_FluxAuxZero_Initial IN AsterX_TouchNonEvolVarsGroup
-{
-  LANG: C
-
-  #######################################################################
-  # Suppose to be constructed fully in AsterX_CalcAuxTermsForAvecPsiRHS #
-  #######################################################################
-  WRITES: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
- 
-  ####################################################
-  # Suppose to be constructed fully in AsterX_Fluxes #
-  ####################################################
-  #WRITES: flux_x(everywhere) flux_y(everywhere) flux_z(everywhere)
-  #WRITES: vbar_xface(everywhere) vbar_yface(everywhere) vbar_zface(everywhere)
-  #WRITES: a_xface(everywhere) a_yface(everywhere) a_zface(everywhere)
-} "Set Fluxes and Auxiliary variables to zero initially"
-
-################################################################################
-
-
 SCHEDULE AsterX_Sync AT postregrid
 {
   LANG: C
@@ -185,7 +145,7 @@ SCHEDULE AsterX_Sync IN ODESolvers_PostStep
   SYNC: cons_vector Avec_x Avec_y Avec_z Psi
 } "Synchronize"
 
-SCHEDULE AsterX_Sync AT post_recover_variables BEFORE ODESolvers_PostStep AFTER AsterX_TouchNonEvolVarsGroup
+SCHEDULE AsterX_Sync AT post_recover_variables BEFORE ODESolvers_PostStep
 {
   LANG: C
   OPTIONS: global
@@ -336,7 +296,6 @@ SCHEDULE AsterX_CalcAuxTermsForAvecPsiRHS IN AsterX_RHSGroup AFTER AsterX_Fluxes
   READS: dBx_stag(everywhere) dBy_stag(everywhere) dBz_stag(everywhere)
   READS: vbar_xface(everywhere) vbar_yface(everywhere) vbar_zface(everywhere)
   READS: a_xface(everywhere) a_yface(everywhere) a_zface(everywhere)
-  READS: Fx_stag(everywhere) Fy_stag(everywhere) Fz_stag(everywhere)
   WRITES: Ex(interior) Ey(interior) Ez(interior)
   WRITES: G(everywhere)
   WRITES: Fbeta(everywhere)
