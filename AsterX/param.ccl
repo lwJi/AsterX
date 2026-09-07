@@ -88,6 +88,10 @@ BOOLEAN debug_mode "Print debug information if set to yes" STEERABLE=always
 {
 } no
 
+BOOLEAN boundary_probe "Scratch (task debug-subcycling-refinement-boundary, not shipped): print max |dB*_stag| on refinement-boundary strips per level after every ODESolvers_PostStep" STEERABLE=always
+{
+} no
+
 BOOLEAN unit_test "turn on all the unit tests if set to yes" STEERABLE=always
 {
 } no

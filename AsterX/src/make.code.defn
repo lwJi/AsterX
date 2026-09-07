@@ -10,6 +10,7 @@ SRCS = \
   check_prims.cxx \
   lo_flag.cxx \
   prim2con.cxx \
+  probe.cxx \
   rhs.cxx \
   sync.cxx \
   source.cxx \
