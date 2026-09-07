@@ -88,12 +88,20 @@ extern "C" void AsterX_RestrictAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
       CCTK_GroupIndex("AsterX::Ey"), CCTK_GroupIndex("AsterX::Ez")};
 
   active_levels->loop_fine_to_coarse([&](const auto &leveldata) {
-    // Only restrict from a child level that is inside the active window
-    // [min_level, max_level), i.e. one that is time-aligned with this level.
-    // Under subcycling a coarse-only batch has no active child, so nothing
-    // is restricted; without subcycling every level is active, so this is
-    // the same as restricting from every level but the finest.
-    if (leveldata.level + 1 < active_levels->max_level)
+    // Restrict from the child level whenever one exists, on every PostStep
+    // on which this level is active. On time-aligned PostSteps these are the
+    // child's values at the same time; on the stage-2..4 PostSteps of a
+    // coarse-only batch under subcycling they are the child's values at t_n
+    // (its most recent PostStep). Either way the coarse RK stage derivatives
+    // under the child are built from the fine grid's E and G, never from the
+    // coarse grid's own, which in the atmosphere leaks the stellar field
+    // outward far more strongly and, carried into the fine ghosts by the
+    // band dense output, produces the refinement-boundary B excess under
+    // subcycling. Without subcycling every level is active on every
+    // PostStep, so this is the same as the active-window guard used for the
+    // hydro fluxes above. RestrictNoPoison does no validity tracking, which
+    // is what permits restricting from a child outside the active window.
+    if (leveldata.level + 1 < ghext->num_levels())
       RestrictNoPoison(cctkGH, leveldata.level, restrict_groups);
   });
 }
