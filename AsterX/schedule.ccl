@@ -221,14 +221,6 @@ SCHEDULE AsterX_ApplyOuterBCOnPrim IN AsterX_Con2PrimGroup AFTER AsterX_Con2Prim
   OPTIONS: global
 } "Apply CarpetX boundary conditions on primitive variables"
 
-if(boundary_probe) {
-SCHEDULE AsterX_BoundaryProbe IN ODESolvers_PostStep AFTER AsterX_Con2PrimGroup
-{
-  LANG: C
-  OPTIONS: global
-} "Scratch: max |dB*_stag| on refinement-boundary strips per level"
-}
-
 if(!freeze_evolution) {
 
 SCHEDULE GROUP AsterX_FluxGroup IN ODESolvers_PostStep AFTER AsterX_Con2PrimGroup BEFORE TmunuBaseX_SetTmunuVars
