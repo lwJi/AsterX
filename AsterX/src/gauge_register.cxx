@@ -3,15 +3,9 @@
 #include <cctk_Parameters.h>
 #include <loop_device.hxx>
 
-// CarpetX internals, reached the same way sync.cxx does: active_levels,
-// RestrictNoPoison, SyncGroupsByDirIGhostOnly, FillPatch_ProlongateOnly,
-// ghext, task_manager.
-#include "../../../CarpetX/CarpetX/src/fillpatch.hxx"
-#include "../../../CarpetX/CarpetX/src/schedule.hxx"
-#include "../../../CarpetX/CarpetX/src/task_manager.hxx"
-
 #include "aster_fd.hxx"
 #include "gauge_register.hxx"
+#include "sync.hxx"
 
 #include <cassert>
 #include <vector>
@@ -22,7 +16,7 @@ using namespace Arith;
 using namespace AsterUtils;
 
 ////////////////////////////////////////////////////////////////////////////////
-// Phase 1: parameter check and initialization
+// Parameter check and initialization
 
 extern "C" void AsterX_GaugeRegisterParamCheck(CCTK_ARGUMENTS) {
   DECLARE_CCTK_PARAMETERS;
@@ -61,7 +55,7 @@ extern "C" void AsterX_GaugeRegisterInit(CCTK_ARGUMENTS) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Phase 2: the reconcile, AsterX_GaugeRegisterGroup AT postrestrict
+// The reconcile, AsterX_GaugeRegisterGroup AT postrestrict
 //
 // CarpetX traverses CCTK_POSTRESTRICT once per time-aligned pass, right after
 // it has restricted the evolved variables fine-to-coarse and prolongated the
@@ -70,38 +64,29 @@ extern "C" void AsterX_GaugeRegisterInit(CCTK_ARGUMENTS) {
 // ODESolvers_PostStep, so everything downstream on this pass (B from A,
 // con2prim, G, E, output) sees the corrected edges.
 //
-// Per aligned pair (fine -> coarse), on the coarse level:
-//   IGr := restrict(IG_fine)          nodal injection; IGr = IG elsewhere
-//   lam := IGr - IG                   != 0 only on covered + interface nodes
-//   A_i -= D_i lam   on every edge    a pure gauge transformation
-//   restrict Avec_* from the fine     resets fine-owned + interface edges
-//   prolongate the fine Avec_* halo   from the corrected coarse level
-//   IG  := IG + lam  (= IGr)          the coarse ledger adopts the fine one
+// With IGr the ledger restricted from the aligned child (and IGr = IG on
+// every other point), per aligned pair on the coarse level:
+//   A_i -= D_i IGr - D_i IG   on every edge   a pure gauge transformation
+//   restrict Avec_* from the fine             resets fine-owned + interface edges
+//   prolongate the fine Avec_* halo           from the corrected coarse level
+//   IG := IGr                                 the coarse ledger adopts the fine
 // and on a full cascade (window reaches level 0) IG := 0 on every level.
 //
 // The local kernels do not test for an aligned child: on a level without one
-// IGr stays an untouched copy of IG, lam = 0, and both the edge update and
-// the adopt are exact no-ops.
+// IGr is an untouched copy of IG, so both the edge update and the adopt are
+// exact no-ops (the two stencils cancel bit for bit).
 
 namespace {
 
-// A level has a time-aligned child iff that child is inside the active
-// window [min_level, max_level). Same guard as AsterX_RestrictFluxes.
-inline bool has_aligned_child(const int level) {
-  assert(CarpetX::active_levels);
-  return level + 1 < CarpetX::active_levels->max_level;
-}
-
-// The aligned window reaches level 0: every level has just been reconciled
-// and the ledgers can be re-zeroed together.
-inline bool full_cascade() {
-  assert(CarpetX::active_levels);
-  return CarpetX::active_levels->min_level == 0;
-}
-
 // Values of the checkpointed grid scalar gauge_register_state.
-constexpr CCTK_INT GAUGE_REGISTER_CORRECT = 0;    // correct on the next full cascade
-constexpr CCTK_INT GAUGE_REGISTER_ADOPT_ONLY = 1; // set by postregrid
+enum class gauge_register_state_t : CCTK_INT {
+  correct = 0,    // correct the coarse edges on the next full cascade
+  adopt_only = 1, // set by postregrid: adopt the ledger, leave edges alone
+};
+
+constexpr CCTK_INT to_int(const gauge_register_state_t s) {
+  return static_cast<CCTK_INT>(s);
+}
 
 template <int i>
 void GaugeCorrectAvec_impl(CCTK_ARGUMENTS, const int order) {
@@ -109,13 +94,15 @@ void GaugeCorrectAvec_impl(CCTK_ARGUMENTS, const int order) {
 
   const vec<GF3D2<CCTK_REAL>, dim> gf_Avec{Avec_x, Avec_y, Avec_z};
 
-  // Same loop and same operator as CalcRHSofAvec_impl uses for -d_i G, with
-  // lam (held in IGr) in place of G, so the correction is exact at any
-  // mag_correction_order.
+  // Same loop and same operator as CalcRHSofAvec_impl uses for -d_i G, so
+  // the correction is exact at any mag_correction_order. The order-4 stencil
+  // reads one ghost vertex of IGr and IG: IGr was ghost-synced after the
+  // restriction, IG in the previous pass's ODESolvers_PostStep.
   grid.loop_int_device<i == 0, i == 1, i == 2>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        gf_Avec(i)(p.I) -= calc_fd_forward_midpoint<i>(IGr, p, order);
+        gf_Avec(i)(p.I) -= calc_fd_forward_midpoint<i>(IGr, p, order) -
+                           calc_fd_forward_midpoint<i>(IG, p, order);
       });
 }
 
@@ -132,32 +119,17 @@ extern "C" void AsterX_GaugeCopyIGr(CCTK_ARGUMENTS) {
 
 // IGr := restrict(IG_fine) on every level with an aligned child, then a
 // same-level ghost exchange of IGr so the order-4 stencil can read one ghost
-// vertex of lam.
+// vertex of it.
 extern "C" void AsterX_GaugeRestrictIGr(CCTK_ARGUMENTS) {
   static const std::vector<int> groups = {CCTK_GroupIndex("AsterX::IGr")};
 
-  CarpetX::active_levels->loop_fine_to_coarse([&](const auto &leveldata) {
-    if (has_aligned_child(leveldata.level))
-      CarpetX::RestrictNoPoison(cctkGH, leveldata.level, groups);
-  });
-
-  CarpetX::SyncGroupsByDirIGhostOnly(cctkGH, groups.size(), groups.data(),
-                                     nullptr);
+  RestrictFromAlignedChildren(cctkGH, groups);
+  SyncGhostsOnly(cctkGH, groups);
 }
 
-// IGr := IGr - IG  (= lam), materialised in place so the edge kernel can
-// hand it to calc_fd_forward_midpoint verbatim.
-extern "C" void AsterX_GaugeFormLambda(CCTK_ARGUMENTS) {
-  DECLARE_CCTK_ARGUMENTSX_AsterX_GaugeFormLambda;
-
-  grid.loop_all_device<0, 0, 0>(
-      grid.nghostzones, [=] CCTK_DEVICE(const PointDesc &p)
-                            CCTK_ATTRIBUTE_ALWAYS_INLINE { IGr(p.I) -= IG(p.I); });
-}
-
-// A_i -= D_i lam on every interior edge of every active level. This is a
-// gauge transformation (B unchanged); the second restriction below turns it
-// into a physical correction by undoing it on every fine-owned edge.
+// A_i -= D_i (IGr - IG) on every interior edge of every active level. This is
+// a gauge transformation (B unchanged); the restriction below turns it into a
+// physical correction by undoing it on every fine-owned edge.
 extern "C" void AsterX_GaugeCorrectAvec(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_GaugeCorrectAvec;
   DECLARE_CCTK_PARAMETERS;
@@ -167,7 +139,8 @@ extern "C" void AsterX_GaugeCorrectAvec(CCTK_ARGUMENTS) {
   // applied, so the edges are left alone (adopt and re-zero still happen).
   // Partial cascades are never skipped. AsterX_GaugeFinish clears the state
   // and logs the skipped cascade once.
-  if (full_cascade() && *gauge_register_state != GAUGE_REGISTER_CORRECT)
+  if (full_cascade() &&
+      *gauge_register_state != to_int(gauge_register_state_t::correct))
     return;
 
   GaugeCorrectAvec_impl<0>(CCTK_PASS_CTOC, mag_correction_order);
@@ -181,65 +154,20 @@ extern "C" void AsterX_GaugeCorrectAvec(CCTK_ARGUMENTS) {
 // levels. The driver's own ProlongateRestrictedGFs ran before this group
 // with the pre-correction coarse edges, and under subcycling the SYNC in
 // ODESolvers_PostStep never prolongates an evolved group, so without this
-// the first stage of the next fine step would read a stale halo.
+// the first stage of the next fine step would read a stale halo. Only the
+// current timelevel is touched: it is the one the correction modified.
 extern "C" void AsterX_GaugeRestrictAvec(CCTK_ARGUMENTS) {
   static const std::vector<int> groups = {CCTK_GroupIndex("AsterX::Avec_x"),
                                           CCTK_GroupIndex("AsterX::Avec_y"),
                                           CCTK_GroupIndex("AsterX::Avec_z")};
 
-  CarpetX::active_levels->loop_fine_to_coarse([&](const auto &leveldata) {
-    if (has_aligned_child(leveldata.level))
-      CarpetX::RestrictNoPoison(cctkGH, leveldata.level, groups);
-  });
-
-  // Halo-only prolongation, per aligned pair, following ApplyOuterBC's
-  // task_manager pattern and SyncGroupsByDirIProlongateOnly_impl's choice of
-  // interpolator and bcrecs (both from the fine GroupData). Only the current
-  // timelevel is touched: it is the one the correction and the restriction
-  // above modified. The coarse patch is gathered from the coarse valid
-  // region only, so the coarse level's same-level ghosts (still stale after
-  // the correction until the SYNC in ODESolvers_PostStep) do not enter.
-  CarpetX::task_manager tasks1;
-  CarpetX::task_manager tasks2;
-  CarpetX::task_manager tasks3;
-
-  for (const int gi : groups) {
-    CarpetX::active_levels->loop_coarse_to_fine([&](auto &restrict leveldata) {
-      if (!has_aligned_child(leveldata.level))
-        return;
-      const int level = leveldata.level;
-      auto &restrict patchdata = CarpetX::ghext->patchdata.at(leveldata.patch);
-      auto &restrict fineleveldata = patchdata.leveldata.at(level + 1);
-      auto &restrict coarsegroupdata = *leveldata.groupdata.at(gi);
-      auto &restrict finegroupdata = *fineleveldata.groupdata.at(gi);
-      assert(!coarsegroupdata.mfab.empty());
-      assert(!finegroupdata.mfab.empty());
-      assert(coarsegroupdata.numvars == finegroupdata.numvars);
-      const int tl = 0;
-      tasks1.submit_serially([&tasks2, &tasks3, &patchdata, &finegroupdata,
-                              &coarsegroupdata, level, tl]() {
-        CarpetX::FillPatch_ProlongateOnly(
-            tasks2, tasks3, finegroupdata, coarsegroupdata,
-            *finegroupdata.mfab.at(tl), *coarsegroupdata.mfab.at(tl),
-            patchdata.amrcore->Geom(level + 1), patchdata.amrcore->Geom(level),
-            finegroupdata.interpolator, finegroupdata.bcrecs);
-      });
-    });
-  } // for gi
-
-  tasks1.run_tasks_serially();
-  CarpetX::synchronize();
-  tasks2.run_tasks_serially();
-  CarpetX::synchronize();
-  tasks3.run_tasks_serially();
-  CarpetX::synchronize();
-
-  assert(CarpetX::ghext->num_patches() == 1);
+  RestrictFromAlignedChildren(cctkGH, groups);
+  ProlongateHaloFromAlignedParents(groups, 0);
 }
 
 // IG := 0 on a full cascade (all levels agree and are re-zeroed together so
 // |IG| never exceeds one coarse step's worth of int G dt), otherwise
-// IG := IG + lam, i.e. the coarse ledger adopts the fine one on covered and
+// IG := IGr, i.e. the coarse ledger adopts the fine one on covered and
 // interface nodes and is unchanged elsewhere.
 extern "C" void AsterX_GaugeAdoptIG(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_GaugeAdoptIG;
@@ -249,21 +177,21 @@ extern "C" void AsterX_GaugeAdoptIG(CCTK_ARGUMENTS) {
   grid.loop_all_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        IG(p.I) = zero ? 0.0 : IG(p.I) + IGr(p.I);
+        IG(p.I) = zero ? 0.0 : IGr(p.I);
       });
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Phase 4: regrid adopt-only path. The state lives in a checkpointed grid
-// scalar, so a checkpoint taken between a regrid and the next full cascade
-// recovers into the same adopt-only path.
+// Regrid adopt-only path. The state lives in a checkpointed grid scalar, so a
+// checkpoint taken between a regrid and the next full cascade recovers into
+// the same adopt-only path.
 
 // AT initial (global): the run starts in the correct state. CCTK_INITIAL is
 // traversed once per level during initialisation, after that level's
 // postregrid, so the last traversal leaves the state at 0.
 extern "C" void AsterX_GaugeRegisterInitState(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_GaugeRegisterInitState;
-  *gauge_register_state = GAUGE_REGISTER_CORRECT;
+  *gauge_register_state = to_int(gauge_register_state_t::correct);
 }
 
 // AT postregrid (global): a level changed during evolution, so the next full
@@ -276,7 +204,7 @@ extern "C" void AsterX_GaugeRegisterMarkRegrid(CCTK_ARGUMENTS) {
 
   if (cctk_iteration <= 0)
     return;
-  *gauge_register_state = GAUGE_REGISTER_ADOPT_ONLY;
+  *gauge_register_state = to_int(gauge_register_state_t::adopt_only);
   CCTK_VINFO("AsterX gauge register: regrid at iteration %d; the next full "
              "cascade will adopt the ledger without correcting edges",
              cctk_iteration);
@@ -291,12 +219,12 @@ extern "C" void AsterX_GaugeFinish(CCTK_ARGUMENTS) {
 
   if (!full_cascade())
     return;
-  if (*gauge_register_state != GAUGE_REGISTER_CORRECT) {
+  if (*gauge_register_state != to_int(gauge_register_state_t::correct)) {
     CCTK_VINFO("AsterX gauge register: adopt-only full cascade at iteration "
                "%d (first after a regrid); coarse edge correction skipped, "
                "ledger adopted and re-zeroed",
                cctk_iteration);
-    *gauge_register_state = GAUGE_REGISTER_CORRECT;
+    *gauge_register_state = to_int(gauge_register_state_t::correct);
   }
 }
 

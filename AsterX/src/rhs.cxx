@@ -70,6 +70,21 @@ void CalcRHSofPsi_impl(CCTK_ARGUMENTS, const CCTK_REAL damp_fac) {
   }
 }
 
+// Nodal gauge register: IG accumulates int G dt through the same RK
+// combinations as Avec. The kernel always runs (ODESolvers checks the RHS
+// interior after every ODESolvers_RHS); when the register is inactive it
+// writes 0 so IG stays a dead ledger and the run is unchanged.
+void CalcRHSofIG(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_AsterX_RHS;
+
+  const bool register_active = gauge_register_active();
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+        IG_rhs(p.I) = register_active ? G(p.I) : 0.0;
+      });
+}
+
 template <int i>
 void CalcRHSofAvec(CCTK_ARGUMENTS, const vector_potential_gauge_t gauge,
                    const int order) {
@@ -174,17 +189,7 @@ extern "C" void AsterX_RHS(CCTK_ARGUMENTS) {
   CalcRHSofAvec<2>(CCTK_PASS_CTOC, gauge, mag_correction_order);
 
   CalcRHSofPsi(CCTK_PASS_CTOC, gauge, lorenz_damp_fac);
-
-  // Nodal gauge register: IG accumulates int G dt through the same RK
-  // combinations as Avec. The kernel always runs (ODESolvers checks the RHS
-  // interior after every ODESolvers_RHS); when the register is inactive it
-  // writes 0 so IG stays a dead ledger and the run is unchanged.
-  const bool register_active = gauge_register_active();
-  grid.loop_int_device<0, 0, 0>(
-      grid.nghostzones,
-      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        IG_rhs(p.I) = register_active ? G(p.I) : 0.0;
-      });
+  CalcRHSofIG(CCTK_PASS_CTOC);
 }
 
 extern "C" void AsterX_FreezeEvolutionRHS(CCTK_ARGUMENTS) {

@@ -205,21 +205,14 @@ if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz"))
     OPTIONS: global
   } "IGr = restrict(IG) from every time-aligned child, then ghost-sync IGr"
 
-  SCHEDULE AsterX_GaugeFormLambda IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeRestrictIGr
-  {
-    LANG: C
-    READS: IG(everywhere) IGr(everywhere)
-    WRITES: IGr(everywhere)
-  } "IGr = IGr - IG (the ledger mismatch lambda)"
-
-  SCHEDULE AsterX_GaugeCorrectAvec IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeFormLambda
+  SCHEDULE AsterX_GaugeCorrectAvec IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeRestrictIGr
   {
     LANG: C
     READS: gauge_register_state
-    READS: IGr(everywhere)
+    READS: IG(everywhere) IGr(everywhere)
     READS: Avec_x(interior) Avec_y(interior) Avec_z(interior)
     WRITES: Avec_x(interior) Avec_y(interior) Avec_z(interior)
-  } "Avec_i -= D_i lambda on every coarse edge (a gauge transformation); skipped on an adopt-only full cascade"
+  } "Avec_i -= D_i (IGr - IG) on every coarse edge (a gauge transformation); skipped on an adopt-only full cascade"
 
   SCHEDULE AsterX_GaugeRestrictAvec IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeCorrectAvec
   {
@@ -232,7 +225,7 @@ if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz"))
     LANG: C
     READS: IG(everywhere) IGr(everywhere)
     WRITES: IG(everywhere)
-  } "IG = 0 on a full cascade, else IG = IG + lambda (adopt the fine ledger)"
+  } "IG = 0 on a full cascade, else IG = IGr (adopt the fine ledger)"
 
   SCHEDULE AsterX_GaugeFinish IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeAdoptIG
   {
