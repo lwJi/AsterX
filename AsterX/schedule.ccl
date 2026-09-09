@@ -9,6 +9,10 @@ STORAGE: Psi[timelevels]
 STORAGE: rhs_vector Avec_x_rhs Avec_y_rhs Avec_z_rhs Psi_rhs
 STORAGE: flux_x flux_y flux_z
 
+# Nodal gauge register. Storage is unconditional: ODESolvers dereferences
+# every rhs-tagged group, so IG cannot be allocated only when active.
+STORAGE: IG[timelevels] IG_rhs IGr
+
 STORAGE: dB dBx_stag dBy_stag dBz_stag
 STORAGE: G Fbeta Fx_stag Fy_stag Fz_stag
 STORAGE: Ex Ey Ez
@@ -31,6 +35,12 @@ if(unit_test)
     OPTIONS: meta
   } "Self-test"
 }
+
+SCHEDULE AsterX_GaugeRegisterParamCheck AT paramcheck
+{
+  LANG: C
+  OPTIONS: global
+} "Warn when the nodal gauge register is requested but restrict_during_sync disables it"
 
 if(local_estimate_error)
 {  
@@ -130,11 +140,17 @@ if (zero_psi) {
   } "Set Psi, time component of 4-vector potential, to zero initially"
 }
 
+SCHEDULE AsterX_GaugeRegisterInit IN AsterX_InitialGroup
+{
+  LANG: C
+  WRITES: IG(everywhere)
+} "Set the nodal gauge register IG to zero initially"
+
 SCHEDULE AsterX_Sync AT postregrid
 {
   LANG: C
   OPTIONS: global
-  SYNC: cons_vector Avec_x Avec_y Avec_z Psi
+  SYNC: cons_vector Avec_x Avec_y Avec_z Psi IG
   SYNC: saved_prims
 } "Synchronize"
 
@@ -142,7 +158,7 @@ SCHEDULE AsterX_Sync IN ODESolvers_PostStep
 {
   LANG: C
   OPTIONS: global
-  SYNC: cons_vector Avec_x Avec_y Avec_z Psi
+  SYNC: cons_vector Avec_x Avec_y Avec_z Psi IG
 } "Synchronize"
 
 SCHEDULE AsterX_Sync AT post_recover_variables BEFORE ODESolvers_PostStep
@@ -330,6 +346,7 @@ SCHEDULE AsterX_FreezeEvolutionRHS IN ODESolvers_RHS
   LANG: C
   WRITES: rhs_vector(interior)
   WRITES: Avec_x_rhs(interior) Avec_y_rhs(interior) Avec_z_rhs(interior) Psi_rhs(interior)
+  WRITES: IG_rhs(interior)
 } "Set AsterX RHS to zero when freeze_evolution is enabled"
 }
 
@@ -370,6 +387,7 @@ SCHEDULE AsterX_RHS IN AsterX_RHSGroup AFTER AsterX_SourceTerms
   WRITES: rhs_vector(interior)
   WRITES: theta_tot(interior)
   WRITES: Avec_x_rhs(interior) Avec_y_rhs(interior) Avec_z_rhs(interior) Psi_rhs(interior)
+  WRITES: IG_rhs(interior)
 } "Update the RHS of the hydro equations with the flux contributions"
 
 if(update_tmunu){

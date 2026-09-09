@@ -27,6 +27,10 @@ BOOLEAN restrict_fluxes "Restrict fluxes and the E/G auxiliary terms fine-to-coa
 {
 } "yes"
 
+BOOLEAN gauge_register "Evolve the nodal gauge register IG (IG_rhs = G) and reconcile coarse Avec edges to the fine gauge integral after each time-aligned restriction. Only active in the generalized Lorenz gauge with CarpetX::restrict_during_sync = no; otherwise the register is inert and the run is unchanged." STEERABLE=never
+{
+} "yes"
+
 KEYWORD flux_type "Flux solver" STEERABLE=always
 {
   "LxF" :: ""
@@ -225,3 +229,6 @@ USES CCTK_REAL mp5_alpha
 
 SHARES: Driver
 USES BOOLEAN use_subcycling
+# CarpetX::restrict_during_sync is a private CarpetX parameter and cannot be
+# USEd here; the gauge register reads it at run time via CCTK_ParameterGet
+# (see src/gauge_register.hxx).
