@@ -11,7 +11,7 @@ STORAGE: flux_x flux_y flux_z
 
 # Nodal gauge register. Storage is unconditional: ODESolvers dereferences
 # every rhs-tagged group, so IG cannot be allocated only when active.
-STORAGE: IG[timelevels] IG_rhs IGr
+STORAGE: IG[timelevels] IG_rhs IGr gauge_register_state
 
 STORAGE: dB dBx_stag dBy_stag dBz_stag
 STORAGE: G Fbeta Fx_stag Fy_stag Fz_stag
@@ -146,6 +146,17 @@ SCHEDULE AsterX_GaugeRegisterInit IN AsterX_InitialGroup
   WRITES: IG(everywhere)
 } "Set the nodal gauge register IG to zero initially"
 
+# The state scalar starts at 0 (correct). CCTK_INITIAL is traversed once per
+# level during initialisation, after that level's postregrid, so the last
+# traversal leaves the state at 0; the postrestrict traversal at the end of
+# initialisation (a full cascade with IG = 0) resets it too.
+SCHEDULE AsterX_GaugeRegisterInitState AT initial
+{
+  LANG: C
+  OPTIONS: global
+  WRITES: gauge_register_state
+} "Set the nodal gauge register state to 0 (correct on the next full cascade)"
+
 SCHEDULE AsterX_Sync AT postregrid
 {
   LANG: C
@@ -204,10 +215,11 @@ if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz"))
   SCHEDULE AsterX_GaugeCorrectAvec IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeFormLambda
   {
     LANG: C
+    READS: gauge_register_state
     READS: IGr(everywhere)
     READS: Avec_x(interior) Avec_y(interior) Avec_z(interior)
     WRITES: Avec_x(interior) Avec_y(interior) Avec_z(interior)
-  } "Avec_i -= D_i lambda on every coarse edge (a gauge transformation)"
+  } "Avec_i -= D_i lambda on every coarse edge (a gauge transformation); skipped on an adopt-only full cascade"
 
   SCHEDULE AsterX_GaugeRestrictAvec IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeCorrectAvec
   {
@@ -221,6 +233,24 @@ if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz"))
     READS: IG(everywhere) IGr(everywhere)
     WRITES: IG(everywhere)
   } "IG = 0 on a full cascade, else IG = IG + lambda (adopt the fine ledger)"
+
+  SCHEDULE AsterX_GaugeFinish IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeAdoptIG
+  {
+    LANG: C
+    OPTIONS: global
+    READS: gauge_register_state
+    WRITES: gauge_register_state
+  } "On a full cascade set the gauge register state back to 0 (log the adopt-only case)"
+
+  # CCTK_POSTREGRID is traversed only when a level actually changed. The fine
+  # ledger on new points is then a prolongation of the coarse one, so the
+  # next full cascade must adopt without correcting edges.
+  SCHEDULE AsterX_GaugeRegisterMarkRegrid AT postregrid
+  {
+    LANG: C
+    OPTIONS: global
+    WRITES: gauge_register_state
+  } "Mark the next full cascade of the nodal gauge register as adopt-only"
 }
 
 SCHEDULE GROUP AsterX_Con2PrimGroup IN ODESolvers_PostStep BEFORE TmunuBaseX_SetTmunuVars AFTER AsterX_Sync AFTER ADMBaseX_SetADMVars
