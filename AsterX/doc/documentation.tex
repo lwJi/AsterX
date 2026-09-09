@@ -119,6 +119,25 @@
 
 \subsection{Special Behaviour}
 
+\paragraph{Nodal gauge register (\texttt{AsterX::gauge\_register}).}
+In the generalized Lorenz gauge the vector potential receives the gauge term
+$-\partial_i G$. Under CarpetX subcycling the coarse and fine levels
+accumulate different time integrals of $G$ at the nodes they share, and the
+driver's restriction of \texttt{Avec} leaves that mismatch as a spurious curl
+(a $B$ shell) in the first coarse cell outside each refinement boundary. With
+\texttt{gauge\_register = yes} (the default) AsterX evolves a vertex ledger
+\texttt{IG} with $\dot{\texttt{IG}} = G$ on every level and, in
+\texttt{CCTK\_POSTRESTRICT} on every time-aligned pass, shifts the coarse
+\texttt{Avec} edges near each interface by the edge-difference of
+$\texttt{IG}_\mathrm{fine} - \texttt{IG}_\mathrm{coarse}$ so both levels
+use one gauge integral per shared node. The register never enters the RHS,
+changes \texttt{Avec} only within one gauge-stencil width of a refinement
+boundary, and is re-zeroed on every full cascade. It is active only with the
+generalized Lorenz gauge and \texttt{CarpetX::restrict\_during\_sync = no}
+(the mode CarpetX requires under subcycling); otherwise it is inert and the
+run is unchanged. Storage for \texttt{IG}, \texttt{IG\_rhs} and the scratch
+\texttt{IGr} is always allocated.
+
 \subsection{Interaction With Other Thorns}
 
 \subsection{Examples}

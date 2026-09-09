@@ -38,6 +38,13 @@ CarpetX::poison_undefined_values = no
 
 CarpetX::use_subcycling = yes
 CarpetX::restrict_during_sync = no
+# The nodal gauge register (AsterX::gauge_register, default yes) is active in
+# this configuration (generalized Lorenz gauge, restrict_during_sync = no). The
+# reference data were generated before it existed and are deliberately left
+# unchanged: the suite passes at ABSTOL/RELTOL 1e-8, while the golden-master
+# comparison (scripts/compare_tsv.py at 1e-13) reports an expected drift of up
+# to ~8e-9 (dBz_stag/Bvec/Avec near the refinement boundary at |c| = 3, which
+# cuts through the star). See .tasks/gauge-register-cf-interface.
 
 # Finest grid spacing is 0.15625 
 # To have a symmetric grid along 0, we have odd number of points (257) 
