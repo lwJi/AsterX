@@ -140,6 +140,9 @@ SCHEDULE AsterX_GaugeRegisterInit IN AsterX_InitialGroup
   WRITES: IG(everywhere)
 } "Set the nodal gauge register IG to zero initially"
 
+# IG is synced unconditionally alongside the other evolved variables: CarpetX's
+# CycleTimelevels requires every rhs-tagged group to be valid everywhere at the
+# top of each iteration, whether or not the gauge register is active.
 SCHEDULE AsterX_Sync AT postregrid
 {
   LANG: C
