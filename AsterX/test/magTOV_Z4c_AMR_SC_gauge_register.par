@@ -3,6 +3,11 @@
 # Same neutron star as the gallery example
 # K=100, rho_c = 1.28e-3 => M = 1.4, M_b = 1.506
 # evolve for t = 48.82 M
+#
+# Same setup as magTOV_Z4c_AMR_SC, but with the nodal gauge register
+# (AsterX::gauge_register) on and CarpetX poisoning at its default. This test
+# pins the register's coarse-edge correction on a subcycled two-level Lorenz
+# gauge run; the reference data were generated with the register on.
 ##############################
 ActiveThorns = "
     ADMBaseX
@@ -34,14 +39,14 @@ TimerReport::out_filename                = "TimerReport"
 TimerReport::output_all_timers_together  = yes
 TimerReport::output_all_timers_readable  = yes
 TimerReport::n_top_timers                = 50
-CarpetX::poison_undefined_values = no
+# CarpetX::poison_undefined_values is left at its default (yes) so the test
+# also covers the register's startup path under full validity checking.
 
 CarpetX::use_subcycling = yes
 CarpetX::restrict_during_sync = no
-# The reference data predate the nodal gauge register; keep it off here so this
-# test pins the subcycled path bit-for-bit. magTOV_Z4c_AMR_SC_gauge_register
-# covers the register.
-AsterX::gauge_register = no
+# Nodal gauge register on (the default; stated explicitly because this test
+# exists to pin it). magTOV_Z4c_AMR_SC runs the same setup with it off.
+AsterX::gauge_register = yes
 
 # Finest grid spacing is 0.15625 
 # To have a symmetric grid along 0, we have odd number of points (257) 
@@ -117,6 +122,13 @@ AsterSeeds::Ab = 100.0
 AsterSeeds::press_cut = 0.04
 AsterSeeds::press_max = 1.638e-4
 AsterSeeds::Avec_kappa = 2.0
+# With poisoning on, AsterSeeds::SetEntropy (HydroBaseX_PostInitial) writes
+# NaN entropy at every point outside the star (kappa of the unfloored vacuum),
+# and CarpetX's output check aborts the run there. AsterX_CheckPrims recomputes
+# entropy everywhere from the floored primitives right afterwards, so skipping
+# SetEntropy changes no evolved quantity (verified bit-identical). Unrelated to
+# the gauge register.
+AsterSeeds::set_entropy_postinitial = no
 
 #AsterSeeds::Afield_config = "external dipole"
 #AsterSeeds::B0 = 1e-7
