@@ -11,7 +11,7 @@ STORAGE: flux_x flux_y flux_z
 
 # Nodal gauge register. Storage is unconditional: ODESolvers dereferences
 # every rhs-tagged group, so IG cannot be allocated only when active.
-STORAGE: IG[timelevels] IG_rhs IGr gauge_register_state
+STORAGE: IG[timelevels] IG_rhs IGr
 
 STORAGE: dB dBx_stag dBy_stag dBz_stag
 STORAGE: G Fbeta Fx_stag Fy_stag Fz_stag
@@ -146,17 +146,6 @@ SCHEDULE AsterX_GaugeRegisterInit IN AsterX_InitialGroup
   WRITES: IG(everywhere)
 } "Set the nodal gauge register IG to zero initially"
 
-# The state scalar starts at 0 (correct). CCTK_INITIAL is traversed once per
-# level during initialisation, after that level's postregrid, so the last
-# traversal leaves the state at 0; the postrestrict traversal at the end of
-# initialisation (a full cascade with IG = 0) resets it too.
-SCHEDULE AsterX_GaugeRegisterInitState AT initial
-{
-  LANG: C
-  OPTIONS: global
-  WRITES: gauge_register_state
-} "Set the nodal gauge register state to 0 (correct on the next full cascade)"
-
 SCHEDULE AsterX_Sync AT postregrid
 {
   LANG: C
@@ -186,6 +175,9 @@ SCHEDULE AsterX_Sync AT post_recover_variables BEFORE ODESolvers_PostStep
 # ODESolvers_PostStep means this pass's B, con2prim, G, E and output already
 # see the corrected coarse edges, and the AsterX_Sync in ODESolvers_PostStep
 # refreshes the same-level ghosts of the corrected Avec for free.
+# The correction runs on every pass, including the first full cascade after a
+# regrid: on a two-level run every regrid happens at a time-aligned point with
+# IG = 0 on every level, so the prolongated ledger on new fine points is exact.
 if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz"))
 {
   SCHEDULE GROUP AsterX_GaugeRegisterGroup AT postrestrict BEFORE ODESolvers_PostStep
@@ -208,11 +200,10 @@ if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz"))
   SCHEDULE AsterX_GaugeCorrectAvec IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeRestrictIGr
   {
     LANG: C
-    READS: gauge_register_state
     READS: IG(everywhere) IGr(everywhere)
     READS: Avec_x(interior) Avec_y(interior) Avec_z(interior)
     WRITES: Avec_x(interior) Avec_y(interior) Avec_z(interior)
-  } "Avec_i -= D_i (IGr - IG) on every coarse edge (a gauge transformation); skipped on an adopt-only full cascade"
+  } "Avec_i -= D_i (IGr - IG) on every coarse edge (a gauge transformation)"
 
   SCHEDULE AsterX_GaugeRestrictAvec IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeCorrectAvec
   {
@@ -226,24 +217,6 @@ if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz"))
     READS: IG(everywhere) IGr(everywhere)
     WRITES: IG(everywhere)
   } "IG = 0 on a full cascade, else IG = IGr (adopt the fine ledger)"
-
-  SCHEDULE AsterX_GaugeFinish IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeAdoptIG
-  {
-    LANG: C
-    OPTIONS: global
-    READS: gauge_register_state
-    WRITES: gauge_register_state
-  } "On a full cascade set the gauge register state back to 0 (log the adopt-only case)"
-
-  # CCTK_POSTREGRID is traversed only when a level actually changed. The fine
-  # ledger on new points is then a prolongation of the coarse one, so the
-  # next full cascade must adopt without correcting edges.
-  SCHEDULE AsterX_GaugeRegisterMarkRegrid AT postregrid
-  {
-    LANG: C
-    OPTIONS: global
-    WRITES: gauge_register_state
-  } "Mark the next full cascade of the nodal gauge register as adopt-only"
 }
 
 SCHEDULE GROUP AsterX_Con2PrimGroup IN ODESolvers_PostStep BEFORE TmunuBaseX_SetTmunuVars AFTER AsterX_Sync AFTER ADMBaseX_SetADMVars

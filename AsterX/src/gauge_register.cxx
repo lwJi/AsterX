@@ -7,7 +7,6 @@
 #include "gauge_register.hxx"
 #include "sync.hxx"
 
-#include <cassert>
 #include <vector>
 
 namespace AsterX {
@@ -75,18 +74,18 @@ extern "C" void AsterX_GaugeRegisterInit(CCTK_ARGUMENTS) {
 // The local kernels do not test for an aligned child: on a level without one
 // IGr is an untouched copy of IG, so both the edge update and the adopt are
 // exact no-ops (the two stencils cancel bit for bit).
+//
+// Regrids need no special handling. CarpetX regrids at the top of an Evolve
+// iteration, before the batch loop, so on a two-level run every regrid that
+// modifies a level happens at a time-aligned point, right after a full
+// cascade zeroed IG on every level: the prolongated ledger on the new fine
+// points (IG = 0) is exactly the honest record and the next cascade corrects
+// as usual. With three or more levels a regrid can fall on a partial cascade
+// where the middle level's IG is nonzero; the new points then carry its
+// smooth interpolant instead of the exact record, a one-time mismatch of
+// interpolation-error size that is accepted.
 
 namespace {
-
-// Values of the checkpointed grid scalar gauge_register_state.
-enum class gauge_register_state_t : CCTK_INT {
-  correct = 0,    // correct the coarse edges on the next full cascade
-  adopt_only = 1, // set by postregrid: adopt the ledger, leave edges alone
-};
-
-constexpr CCTK_INT to_int(const gauge_register_state_t s) {
-  return static_cast<CCTK_INT>(s);
-}
 
 template <int i>
 void GaugeCorrectAvec_impl(CCTK_ARGUMENTS, const int order) {
@@ -134,15 +133,6 @@ extern "C" void AsterX_GaugeCorrectAvec(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_GaugeCorrectAvec;
   DECLARE_CCTK_PARAMETERS;
 
-  // First full cascade after a regrid: the fine ledger on new points is a
-  // prolongation of the coarse one, not a record of what the fine level
-  // applied, so the edges are left alone (adopt and re-zero still happen).
-  // Partial cascades are never skipped. AsterX_GaugeFinish clears the state
-  // and logs the skipped cascade once.
-  if (full_cascade() &&
-      *gauge_register_state != to_int(gauge_register_state_t::correct))
-    return;
-
   GaugeCorrectAvec_impl<0>(CCTK_PASS_CTOC, mag_correction_order);
   GaugeCorrectAvec_impl<1>(CCTK_PASS_CTOC, mag_correction_order);
   GaugeCorrectAvec_impl<2>(CCTK_PASS_CTOC, mag_correction_order);
@@ -179,53 +169,6 @@ extern "C" void AsterX_GaugeAdoptIG(CCTK_ARGUMENTS) {
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
         IG(p.I) = zero ? 0.0 : IGr(p.I);
       });
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Regrid adopt-only path. The state lives in a checkpointed grid scalar, so a
-// checkpoint taken between a regrid and the next full cascade recovers into
-// the same adopt-only path.
-
-// AT initial (global): the run starts in the correct state. CCTK_INITIAL is
-// traversed once per level during initialisation, after that level's
-// postregrid, so the last traversal leaves the state at 0.
-extern "C" void AsterX_GaugeRegisterInitState(CCTK_ARGUMENTS) {
-  DECLARE_CCTK_ARGUMENTSX_AsterX_GaugeRegisterInitState;
-  *gauge_register_state = to_int(gauge_register_state_t::correct);
-}
-
-// AT postregrid (global): a level changed during evolution, so the next full
-// cascade must adopt the ledger without correcting edges. Postregrid
-// traversals while the hierarchy is being built (iteration 0) are ignored:
-// the ledger is identically zero there and the postrestrict traversal at the
-// end of initialisation resets the state anyway.
-extern "C" void AsterX_GaugeRegisterMarkRegrid(CCTK_ARGUMENTS) {
-  DECLARE_CCTK_ARGUMENTSX_AsterX_GaugeRegisterMarkRegrid;
-
-  if (cctk_iteration <= 0)
-    return;
-  *gauge_register_state = to_int(gauge_register_state_t::adopt_only);
-  CCTK_VINFO("AsterX gauge register: regrid at iteration %d; the next full "
-             "cascade will adopt the ledger without correcting edges",
-             cctk_iteration);
-}
-
-// Last member of AsterX_GaugeRegisterGroup (global): on a full cascade the
-// ledgers have just been reconciled and re-zeroed, so the state returns to
-// correct. The skipped (adopt-only) cascade is logged exactly once so runs
-// are auditable.
-extern "C" void AsterX_GaugeFinish(CCTK_ARGUMENTS) {
-  DECLARE_CCTK_ARGUMENTSX_AsterX_GaugeFinish;
-
-  if (!full_cascade())
-    return;
-  if (*gauge_register_state != to_int(gauge_register_state_t::correct)) {
-    CCTK_VINFO("AsterX gauge register: adopt-only full cascade at iteration "
-               "%d (first after a regrid); coarse edge correction skipped, "
-               "ledger adopted and re-zeroed",
-               cctk_iteration);
-    *gauge_register_state = to_int(gauge_register_state_t::correct);
-  }
 }
 
 } // namespace AsterX

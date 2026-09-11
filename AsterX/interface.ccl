@@ -127,12 +127,6 @@ CCTK_REAL IG_rhs TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "RHS of IG (= G 
 
 CCTK_REAL IGr TYPE=gf CENTERING={vvv} TAGS='checkpoint="no" restrict="no"' "Scratch: IG restricted from the time-aligned child level"
 
-# Checkpointed state of the reconcile: 0 = correct the coarse edges on the
-# next full cascade, 1 = adopt-only (set by postregrid: after a regrid the
-# fine ledger on new points is a prolongation of the coarse one, so the
-# first full cascade adopts and re-zeroes the ledger without touching edges).
-CCTK_INT gauge_register_state TYPE=scalar "Nodal gauge register state: 0 = correct on the next full cascade, 1 = adopt-only (first full cascade after a regrid)"
-
 CCTK_REAL Fbeta TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"'
 {
   Fbetax, Fbetay, Fbetaz
