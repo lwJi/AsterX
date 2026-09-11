@@ -36,12 +36,6 @@ if(unit_test)
   } "Self-test"
 }
 
-SCHEDULE AsterX_GaugeRegisterParamCheck AT paramcheck
-{
-  LANG: C
-  OPTIONS: global
-} "Warn when the nodal gauge register is requested but restrict_during_sync disables it"
-
 if(local_estimate_error)
 {  
   SCHEDULE AsterX_EstimateError_Setup AT wragh
@@ -168,17 +162,21 @@ SCHEDULE AsterX_Sync AT post_recover_variables BEFORE ODESolvers_PostStep
   SYNC: saved_prims
 } "Synchronize"
 
-# Nodal gauge register reconcile. CarpetX traverses CCTK_POSTRESTRICT only
-# with restrict_during_sync = no (a private CarpetX parameter that cannot be
-# tested here), once per time-aligned pass, right after it restricted the
-# evolved variables and prolongated their fine ghost halos. Running BEFORE
-# ODESolvers_PostStep means this pass's B, con2prim, G, E and output already
-# see the corrected coarse edges, and the AsterX_Sync in ODESolvers_PostStep
-# refreshes the same-level ghosts of the corrected Avec for free.
+# Nodal gauge register reconcile. Active only under subcycling: that is the
+# only configuration in which the coarse and fine levels accumulate different
+# gauge integrals at shared nodes, and CarpetX then rejects its
+# restrict-during-sync mode, so it traverses CCTK_POSTRESTRICT once per
+# time-aligned pass, right after it restricted the evolved variables and
+# prolongated their fine ghost halos. Running BEFORE ODESolvers_PostStep means
+# this pass's B, con2prim, G, E and output already see the corrected coarse
+# edges, and the AsterX_Sync in ODESolvers_PostStep refreshes the same-level
+# ghosts of the corrected Avec for free.
 # The correction runs on every pass, including the first full cascade after a
 # regrid: on a two-level run every regrid happens at a time-aligned point with
 # IG = 0 on every level, so the prolongated ledger on new fine points is exact.
-if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz"))
+# gauge_register_active() in src/gauge_register.hxx tests the same three
+# conditions, so when this block is not scheduled IG_rhs = 0 as well.
+if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz") && use_subcycling)
 {
   SCHEDULE GROUP AsterX_GaugeRegisterGroup AT postrestrict BEFORE ODESolvers_PostStep
   {

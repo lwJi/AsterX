@@ -15,33 +15,7 @@ using namespace Arith;
 using namespace AsterUtils;
 
 ////////////////////////////////////////////////////////////////////////////////
-// Parameter check and initialization
-
-extern "C" void AsterX_GaugeRegisterParamCheck(CCTK_ARGUMENTS) {
-  DECLARE_CCTK_PARAMETERS;
-
-  // The register is requested and would matter (Lorenz gauge, subcycling),
-  // but the driver's sync mode never traverses CCTK_POSTRESTRICT, so the
-  // reconcile cannot run. Warn rather than abort. Without subcycling the
-  // ledger mismatch is identically zero (AsterX_RestrictAuxTermsForAvecPsiRHS
-  // injects the fine G into the coarse shared nodes at every stage), and
-  // restrict_during_sync = yes is the normal non-subcycled configuration, so
-  // no warning is issued there.
-  if (gauge_register &&
-      CCTK_EQUALS(vector_potential_gauge, "generalized Lorenz") &&
-      use_subcycling && carpetx_restrict_during_sync()) {
-    CCTK_VINFO("The nodal gauge register (AsterX::gauge_register = yes) is "
-               "inactive because CarpetX::restrict_during_sync = yes.");
-    CCTK_VWARN(CCTK_WARN_ALERT,
-               "AsterX::gauge_register = yes was requested with the "
-               "generalized Lorenz gauge, but CarpetX::restrict_during_sync = "
-               "yes. The nodal gauge register needs the CCTK_POSTRESTRICT "
-               "bin, which CarpetX only traverses with restrict_during_sync = "
-               "no; the register is inactive (IG_rhs = 0, no reconcile) and "
-               "the coarse-fine gauge mismatch is not corrected. Set "
-               "CarpetX::restrict_during_sync = no to activate it.");
-  }
-}
+// Initialization
 
 extern "C" void AsterX_GaugeRegisterInit(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_GaugeRegisterInit;
