@@ -68,9 +68,12 @@ void GaugeCorrectAvec_impl(CCTK_ARGUMENTS, const int order) {
   const vec<GF3D2<CCTK_REAL>, dim> gf_Avec{Avec_x, Avec_y, Avec_z};
 
   // Same loop and same operator as CalcRHSofAvec_impl uses for -d_i G, so
-  // the correction is exact at any mag_correction_order. The order-4 stencil
-  // reads one ghost vertex of IGr and IG: IGr was ghost-synced after the
-  // restriction, IG in the previous pass's ODESolvers_PostStep.
+  // the correction is exact at any mag_correction_order. The order-4 and
+  // order-6 stencils read ghost vertices of IGr and IG. Neither is synced
+  // inside this group: IGr's ghosts come from the ghost sync at the end of
+  // AsterX_GaugeRestrictIGr, IG's from the unconditional AsterX_Sync in the
+  // previous pass's ODESolvers_PostStep, and AsterX_GaugeCopyIGr ran before
+  // the restriction so IGr's uncovered nodes and ghosts are that same IG.
   grid.loop_int_device<i == 0, i == 1, i == 2>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
@@ -118,15 +121,18 @@ extern "C" void AsterX_GaugeCorrectAvec(CCTK_ARGUMENTS) {
 // levels. The driver's own ProlongateRestrictedGFs ran before this group
 // with the pre-correction coarse edges, and under subcycling the SYNC in
 // ODESolvers_PostStep never prolongates an evolved group, so without this
-// the first stage of the next fine step would read a stale halo. Only the
-// current timelevel is touched: it is the one the correction modified.
+// the first stage of the next fine step would read a stale halo. The
+// restriction touches all but the oldest timelevel and the halo
+// prolongation only timelevel 0; under subcycling ODESolvers enforces a
+// single active timelevel for every evolved group, which is the one the
+// correction modified, so the two agree.
 extern "C" void AsterX_GaugeRestrictAvec(CCTK_ARGUMENTS) {
   static const std::vector<int> groups = {CCTK_GroupIndex("AsterX::Avec_x"),
                                           CCTK_GroupIndex("AsterX::Avec_y"),
                                           CCTK_GroupIndex("AsterX::Avec_z")};
 
   RestrictFromAlignedChildren(cctkGH, groups);
-  ProlongateHaloFromAlignedParents(groups, 0);
+  ProlongateHaloFromAlignedParents(cctkGH, groups, 0);
 }
 
 // IG := 0 on a full cascade (all levels agree and are re-zeroed together so

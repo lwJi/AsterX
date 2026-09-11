@@ -45,49 +45,11 @@ void SyncGhostsOnly(const cGH *const cctkGH, const std::vector<int> &groups) {
   SyncGroupsByDirIGhostOnly(cctkGH, groups.size(), groups.data(), nullptr);
 }
 
-void ProlongateHaloFromAlignedParents(const std::vector<int> &groups,
+void ProlongateHaloFromAlignedParents(const cGH *const cctkGH,
+                                      const std::vector<int> &groups,
                                       const int tl) {
-  assert(active_levels);
-  assert(ghext->num_patches() == 1);
-
-  // Halo-only prolongation per aligned pair, following ApplyOuterBC's
-  // task_manager pattern and SyncGroupsByDirIProlongateOnly_impl's choice of
-  // interpolator and bcrecs (both from the fine GroupData). The coarse patch
-  // is gathered from the coarse valid region only, so stale coarse
-  // same-level ghosts do not enter.
-  task_manager tasks1;
-  task_manager tasks2;
-  task_manager tasks3;
-
-  for (const int gi : groups) {
-    active_levels->loop_coarse_to_fine([&](auto &restrict leveldata) {
-      if (!has_aligned_child(leveldata.level))
-        return;
-      const int level = leveldata.level;
-      auto &restrict patchdata = ghext->patchdata.at(leveldata.patch);
-      auto &restrict fineleveldata = patchdata.leveldata.at(level + 1);
-      auto &restrict coarsegroupdata = *leveldata.groupdata.at(gi);
-      auto &restrict finegroupdata = *fineleveldata.groupdata.at(gi);
-      assert(!coarsegroupdata.mfab.empty());
-      assert(!finegroupdata.mfab.empty());
-      assert(coarsegroupdata.numvars == finegroupdata.numvars);
-      tasks1.submit_serially([&tasks2, &tasks3, &patchdata, &finegroupdata,
-                              &coarsegroupdata, level, tl]() {
-        FillPatch_ProlongateOnly(
-            tasks2, tasks3, finegroupdata, coarsegroupdata,
-            *finegroupdata.mfab.at(tl), *coarsegroupdata.mfab.at(tl),
-            patchdata.amrcore->Geom(level + 1), patchdata.amrcore->Geom(level),
-            finegroupdata.interpolator, finegroupdata.bcrecs);
-      });
-    });
-  } // for gi
-
-  tasks1.run_tasks_serially();
-  synchronize();
-  tasks2.run_tasks_serially();
-  synchronize();
-  tasks3.run_tasks_serially();
-  synchronize();
+  SyncGroupsByDirIProlongateOnlyAligned(cctkGH, groups.size(), groups.data(),
+                                        nullptr, tl);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
