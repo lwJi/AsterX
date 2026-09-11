@@ -6,8 +6,51 @@
 #include "../../../CarpetX/CarpetX/src/schedule.hxx"
 #include "../../../CarpetX/CarpetX/src/task_manager.hxx"
 
+#include "sync.hxx"
+
+#include <cassert>
+#include <vector>
+
 namespace AsterX {
 using namespace CarpetX;
+
+////////////////////////////////////////////////////////////////////////////////
+// Level-window helpers (declared in sync.hxx)
+
+bool has_aligned_child(const int level) {
+  assert(active_levels);
+  return level + 1 < active_levels->max_level;
+}
+
+bool full_cascade() {
+  assert(active_levels);
+  return active_levels->min_level == 0;
+}
+
+void RestrictFromAlignedChildren(const cGH *const cctkGH,
+                                 const std::vector<int> &groups) {
+  assert(active_levels);
+  active_levels->loop_fine_to_coarse([&](const auto &leveldata) {
+    // Only restrict from a child level that is inside the active window
+    // [min_level, max_level), i.e. one that is time-aligned with this level.
+    // Under subcycling a coarse-only batch has no active child, so nothing
+    // is restricted; without subcycling every level is active, so this is
+    // the same as restricting from every level but the finest.
+    if (has_aligned_child(leveldata.level))
+      RestrictNoPoison(cctkGH, leveldata.level, groups);
+  });
+}
+
+void SyncGhostsOnly(const cGH *const cctkGH, const std::vector<int> &groups) {
+  SyncGroupsByDirIGhostOnly(cctkGH, groups.size(), groups.data(), nullptr);
+}
+
+void ProlongateHaloFromAlignedParents(const cGH *const cctkGH,
+                                      const std::vector<int> &groups,
+                                      const int tl) {
+  SyncGroupsByDirIProlongateOnlyAligned(cctkGH, groups.size(), groups.data(),
+                                        nullptr, tl);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -71,15 +114,7 @@ extern "C" void AsterX_RestrictFluxes(CCTK_ARGUMENTS) {
       CCTK_GroupIndex("AsterX::flux_x"), CCTK_GroupIndex("AsterX::flux_y"),
       CCTK_GroupIndex("AsterX::flux_z")};
 
-  active_levels->loop_fine_to_coarse([&](const auto &leveldata) {
-    // Only restrict from a child level that is inside the active window
-    // [min_level, max_level), i.e. one that is time-aligned with this level.
-    // Under subcycling a coarse-only batch has no active child, so nothing
-    // is restricted; without subcycling every level is active, so this is
-    // the same as restricting from every level but the finest.
-    if (leveldata.level + 1 < active_levels->max_level)
-      RestrictNoPoison(cctkGH, leveldata.level, restrict_groups);
-  });
+  RestrictFromAlignedChildren(cctkGH, restrict_groups);
 }
 
 extern "C" void AsterX_RestrictAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
@@ -87,15 +122,7 @@ extern "C" void AsterX_RestrictAuxTermsForAvecPsiRHS(CCTK_ARGUMENTS) {
       CCTK_GroupIndex("AsterX::G"), CCTK_GroupIndex("AsterX::Ex"),
       CCTK_GroupIndex("AsterX::Ey"), CCTK_GroupIndex("AsterX::Ez")};
 
-  active_levels->loop_fine_to_coarse([&](const auto &leveldata) {
-    // Only restrict from a child level that is inside the active window
-    // [min_level, max_level), i.e. one that is time-aligned with this level.
-    // Under subcycling a coarse-only batch has no active child, so nothing
-    // is restricted; without subcycling every level is active, so this is
-    // the same as restricting from every level but the finest.
-    if (leveldata.level + 1 < active_levels->max_level)
-      RestrictNoPoison(cctkGH, leveldata.level, restrict_groups);
-  });
+  RestrictFromAlignedChildren(cctkGH, restrict_groups);
 }
 
 extern "C" void AsterX_ProlongatedBstag(CCTK_ARGUMENTS) {

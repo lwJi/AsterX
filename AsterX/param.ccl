@@ -27,6 +27,31 @@ BOOLEAN restrict_fluxes "Restrict fluxes and the E/G auxiliary terms fine-to-coa
 {
 } "yes"
 
+# Nodal gauge register (see src/gauge_register.cxx and doc/documentation.tex).
+# Under subcycling the coarse and fine levels accumulate different time
+# integrals of the gauge term G at the nodes they share, and the driver's
+# restriction of Avec then leaves that mismatch as a spurious curl (a B shell)
+# in the first coarse cell outside every refinement boundary. With
+# gauge_register = yes AsterX evolves a vertex ledger IG with IG_rhs = G on
+# every level and, in the CCTK_POSTRESTRICT bin of every time-aligned pass,
+# shifts the coarse Avec edges near each interface by the edge-difference of
+# (IG_fine - IG_coarse) so both levels use one gauge integral per shared node;
+# IG is re-zeroed on every full cascade. The register never enters the RHS and
+# only changes Avec within one gauge-stencil width of a refinement boundary.
+# It is active only when all of the following hold: gauge_register = yes,
+# vector_potential_gauge = "generalized Lorenz", and
+# CarpetX::use_subcycling = yes. Otherwise IG_rhs = 0, no reconcile is
+# scheduled, and the run is bit-identical to one without the register; without
+# subcycling the mismatch is identically zero and the register is inert by
+# design. On a subcycled run with a single refinement level no full cascade
+# ever runs, so IG accumulates the integral of G over the whole run without
+# being re-zeroed; this has no effect on Avec, since no reconcile runs either.
+# Storage for IG, IG_rhs and IGr is always allocated (ODESolvers needs storage
+# on every rhs-tagged group).
+BOOLEAN gauge_register "Evolve the nodal gauge register IG (IG_rhs = G) and reconcile coarse Avec edges to the fine gauge integral after each time-aligned restriction. Only active in the generalized Lorenz gauge with CarpetX::use_subcycling = yes; otherwise the register is inert and the run is unchanged." STEERABLE=never
+{
+} "yes"
+
 KEYWORD flux_type "Flux solver" STEERABLE=always
 {
   "LxF" :: ""

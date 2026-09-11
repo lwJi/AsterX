@@ -119,6 +119,66 @@
 
 \subsection{Special Behaviour}
 
+\paragraph{Nodal gauge register (\texttt{AsterX::gauge\_register}).}
+In the generalized Lorenz gauge the vector potential receives the gauge term
+$-\partial_i G$. Under CarpetX subcycling the coarse and fine levels
+accumulate different time integrals of $G$ at the nodes they share, and the
+driver's restriction of \texttt{Avec} leaves that mismatch as a spurious curl
+(a $B$ shell) in the first coarse cell outside each refinement boundary. With
+\texttt{gauge\_register = yes} (the default) AsterX evolves a vertex ledger
+\texttt{IG} with $\dot{\texttt{IG}} = G$ on every level and, in
+\texttt{CCTK\_POSTRESTRICT} on every time-aligned pass, shifts the coarse
+\texttt{Avec} edges near each interface by the edge-difference of
+$\texttt{IG}_\mathrm{fine} - \texttt{IG}_\mathrm{coarse}$ (a pure gauge
+transformation using the same finite-difference operator as the
+$-\partial_i G$ term, at \texttt{mag\_correction\_order}) so both levels use
+one gauge integral per shared node. The register never enters the RHS,
+changes \texttt{Avec} only within one gauge-stencil width of a refinement
+boundary, and is re-zeroed on every full cascade, so \texttt{IG} never holds
+more than one coarse step's worth of $\int G\,dt$ on a multi-level run.
+
+\emph{Activation.} The register is active only when all three of
+\texttt{gauge\_register = yes}, \texttt{vector\_potential\_gauge =
+"generalized Lorenz"} and \texttt{CarpetX::use\_subcycling = yes} hold.
+Otherwise $\texttt{IG\_rhs} = 0$, none of the reconcile routines is
+scheduled, and the run is bit-identical to one without the register (without
+subcycling the mismatch is identically zero). Under subcycling CarpetX
+requires \texttt{restrict\_during\_sync = no}, so \texttt{CCTK\_POSTRESTRICT}
+is always traversed when the register is active.
+
+\emph{Regridding.} On a two-level run every regrid that modifies a level
+happens at a time-aligned point, where the preceding full cascade has already
+zeroed \texttt{IG} on every level; the ledger prolongated onto new fine points
+is therefore exactly zero and exact, and the correction runs unchanged on the
+next full cascade. (With three or more levels a regrid of the finest level at
+a partial cascade prolongates a non-zero intermediate ledger; that one-time
+interpolation residual is accepted.) On a subcycled run with a single level no
+full cascade ever runs, so \texttt{IG} accumulates $\int G\,dt$ over the whole
+run without being re-zeroed; this has no effect on \texttt{Avec}, since no
+reconcile runs either.
+
+\emph{Cost.} Storage for \texttt{IG}, \texttt{IG\_rhs} and the scratch
+\texttt{IGr} is always allocated (ODESolvers requires storage on every
+rhs-tagged group), \texttt{IG\_rhs} is written inside the \texttt{Psi} RHS
+loop, and \texttt{IG} is synchronized with the other evolved variables after
+every stage whether or not the register is active (the driver requires every
+evolved group to be valid everywhere at the top of each iteration). An inert
+run therefore still pays the ghost synchronization of one vertex grid
+function, but no extra kernel and no reconcile.
+
+\emph{Validation and tests.} On a two-level magnetised TOV run with
+\texttt{mag\_correction\_order = 2}, the register reduces the interface
+$B$-shell metric by a factor of about 2360 ($2.1\times10^{-14}$ to
+$9.1\times10^{-18}$) and brings the subcycled interface profile onto the
+non-subcycled one. Three regression tests cover the AMR configurations:
+\texttt{magTOV\_Z4c\_AMR\_SC} and \texttt{magTOV\_Z4c\_AMR\_SC\_norestrict}
+run subcycled with \texttt{gauge\_register = no} and pin the subcycled path
+bit-for-bit against reference data that predate the register;
+\texttt{magTOV\_Z4c\_AMR\_SC\_gauge\_register} runs the same setup as
+\texttt{magTOV\_Z4c\_AMR\_SC} with the register on and CarpetX poisoning at
+its default, against reference data generated with the register on;
+\texttt{magTOV\_Z4c\_AMR} is not subcycled, so the register is inert there.
+
 \subsection{Interaction With Other Thorns}
 
 \subsection{Examples}
