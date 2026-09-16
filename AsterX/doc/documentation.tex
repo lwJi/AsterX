@@ -178,6 +178,10 @@ bit-for-bit against reference data that predate the register;
 \texttt{magTOV\_Z4c\_AMR\_SC} with the register on and CarpetX poisoning at
 its default, against reference data generated with the register on;
 \texttt{magTOV\_Z4c\_AMR} is not subcycled, so the register is inert there.
+\texttt{magTOV\_Z4c\_AMR\_mag\_order4} runs the non-subcycled setup with
+\texttt{mag\_correction\_order = 4}, CarpetX poisoning on and every box cut
+into tiles, and pins the loop coverage of the \texttt{dB*\_stag} and
+\texttt{dB} kernels: an unwritten point of either output aborts the run.
 
 \subsection{Interaction With Other Thorns}
 
