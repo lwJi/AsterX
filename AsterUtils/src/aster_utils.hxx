@@ -22,6 +22,26 @@ using namespace std;
 using namespace Loop;
 using namespace Arith;
 
+// Highest order in {max_order, max_order - 2, ..., 2} whose stencil fits
+// inside the input grid function along one direction. Both
+// calc_fd_forward_midpoint (aster_fd.hxx) and calc_avg_f2c (aster_interp.hxx)
+// read, at order 2k, the offsets -(k-1) .. +k relative to p.I[dir], so they
+// need k-1 points below and k points above the current index:
+//   low  = p.I[dir]
+//   high = extent[dir] - 1 - p.I[dir]
+// where extent[dir] is the number of points of the *input* grid function
+// along dir (grid.lsh[dir] minus that input's centering offset in dir).
+// Order 2 (offsets 0, +1) always fits inside a loop over the output.
+CCTK_DEVICE CCTK_HOST CCTK_ATTRIBUTE_ALWAYS_INLINE inline int
+fitting_order(const int max_order, const int low, const int high) {
+  for (int order = max_order; order > 2; order -= 2) {
+    const int k = order / 2;
+    if (low >= k - 1 && high >= k)
+      return order;
+  }
+  return 2;
+}
+
 // For contractions, make sure to use the correct indices of the vectors
 // Computes the contraction of smat and vec
 template <typename T, int D>

@@ -183,6 +183,24 @@ its default, against reference data generated with the register on;
 into tiles, and pins the loop coverage of the \texttt{dB*\_stag} and
 \texttt{dB} kernels: an unwritten point of either output aborts the run.
 
+\paragraph{Higher-order magnetic-field stencils
+(\texttt{AsterX::mag\_correction\_order}).}
+The curl of \texttt{Avec} onto the faces (\texttt{dB*\_stag}) and the
+face-to-cell average onto \texttt{dB} are each computed in a single pass over
+the whole component, ghost and outer-boundary points included, so neither
+kernel relies on a synchronization to fill its ghosts. At every point and along every derivative or
+averaging direction the stencil order is the highest one in
+$\{\texttt{mag\_correction\_order}, \ldots, 2\}$ whose stencil fits inside the
+input component along that direction (order $2k$ reads $k-1$ points below and
+$k$ points above). The order is therefore reduced only along the direction and
+only at the points where the full stencil would leave the component, i.e. in
+the outermost layers of the ghost zones or outer boundary, and interior values
+are always at the full order. For \texttt{mag\_correction\_order > 2} the
+interprocess ghosts of \texttt{dB*\_stag} are exchanged before the
+face-to-cell average, so that stencil reads the neighbour's full-order
+staggered values; the ghosts of \texttt{dB} are exchanged before
+\texttt{Bvec} is formed.
+
 \subsection{Interaction With Other Thorns}
 
 \subsection{Examples}

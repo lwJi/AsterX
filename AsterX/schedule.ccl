@@ -81,9 +81,14 @@ SCHEDULE AsterX_ComputedBFromdBstag IN AsterX_InitialGroup AFTER AsterX_Computed
   WRITES: dB(everywhere)
 } "Calculate centered dB from dBstag"
 
-# Extra interprocessor syncs only for higher order stencils
+# Extra interprocessor syncs only for higher order stencils. The ghost-only
+# sync of dBstag must precede the cell-centring step, so that the order-N
+# face-to-cell stencil of AsterX_ComputedBFromdBstag reads the neighbour's
+# full-order staggered values in the interprocess ghosts (its BEFORE
+# AsterX_ProlongatedBstag anchor alone is dropped by the flesh whenever that
+# routine is not scheduled).
 if (mag_correction_order > 2) {
-  SCHEDULE AsterX_CommdBstag IN AsterX_InitialGroup AFTER AsterX_ComputedBstagFromA BEFORE AsterX_ProlongatedBstag 
+  SCHEDULE AsterX_CommdBstag IN AsterX_InitialGroup AFTER AsterX_ComputedBstagFromA BEFORE AsterX_ComputedBFromdBstag BEFORE AsterX_ProlongatedBstag
   {
     LANG: C
     OPTIONS: global
@@ -247,9 +252,14 @@ SCHEDULE AsterX_ComputedBFromdBstag IN AsterX_Con2PrimGroup AFTER AsterX_Compute
   WRITES: dB(everywhere)
 } "Calculate centered dB from dBstag"
 
-# Extra interprocessor syncs only for higher order stencils
+# Extra interprocessor syncs only for higher order stencils. The ghost-only
+# sync of dBstag must precede the cell-centring step, so that the order-N
+# face-to-cell stencil of AsterX_ComputedBFromdBstag reads the neighbour's
+# full-order staggered values in the interprocess ghosts (its BEFORE
+# AsterX_ProlongatedBstag anchor alone is dropped by the flesh whenever that
+# routine is not scheduled).
 if (mag_correction_order > 2) {
-  SCHEDULE AsterX_CommdBstag IN AsterX_Con2PrimGroup AFTER AsterX_ComputedBstagFromA BEFORE AsterX_ProlongatedBstag 
+  SCHEDULE AsterX_CommdBstag IN AsterX_Con2PrimGroup AFTER AsterX_ComputedBstagFromA BEFORE AsterX_ComputedBFromdBstag BEFORE AsterX_ProlongatedBstag
   {
     LANG: C
     OPTIONS: global

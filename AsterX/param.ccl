@@ -128,7 +128,7 @@ CCTK_INT unit_test_repetitions "Number of times each unit test should be repeate
 
 restricted:
 
-CCTK_INT mag_correction_order "Order of accuracy for higher order corrections to magnetic field evolution" STEERABLE=never
+CCTK_INT mag_correction_order "Order of accuracy for higher order corrections to magnetic field evolution. The curl (Avec to dBstag) and face-to-cell average (dBstag to dB) stencils use this order at every point where the stencil fits inside the component; where it does not, the order is reduced (6 -> 4 -> 2) only along that direction and only at those points, so ghost and outer-boundary values are computed at the highest order the component allows" STEERABLE=never
 {
   2 :: "Second order accurate"
   4 :: "Fourth order accurate"
