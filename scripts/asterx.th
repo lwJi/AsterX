@@ -713,7 +713,6 @@ CarpetX/Loop
 CarpetX/ODESolvers
 CarpetX/PDESolvers
 CarpetX/PoissonX
-CarpetX/Subcycling
 CarpetX/TestArrayGroup
 CarpetX/TestInterpolate
 CarpetX/TestNorms
