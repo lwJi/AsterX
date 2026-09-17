@@ -158,8 +158,8 @@ CCTK_REAL diagnostics TYPE=gf CENTERING={ccc} TAGS='checkpoint="no"'
 } "Diagnostic grid functions"
 
 # saved_prims are computed only once at the beginning of the simulation
-# at the outer physical boundary because they are not needed afterwards 
-CCTK_REAL saved_prims TYPE=gf CENTERING={ccc} TAGS='parities={+1 +1 +1    -1 +1 +1    +1 -1 +1    +1 +1 -1    +1 +1 +1    +1 +1 +1}'
+# at the outer physical boundary because they are not needed afterwards
+CCTK_REAL saved_prims TYPE=gf CENTERING={ccc} TAGS='parities={+1 +1 +1    -1 +1 +1    +1 -1 +1    +1 +1 -1    +1 +1 +1    +1 +1 +1} evolve="no"'
 {
   saved_rho
   saved_velx saved_vely saved_velz
