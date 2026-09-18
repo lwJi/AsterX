@@ -33,13 +33,6 @@ void RestrictFromAlignedChildren(const cGH *cctkGH,
 // every active level. No prolongation.
 void SyncGhostsOnly(const cGH *cctkGH, const std::vector<int> &groups);
 
-// Refill the ghost halo of timelevel `tl` of `groups` on every level whose
-// parent is in the active window, by prolongation from that parent. Under
-// subcycling only time-aligned pairs are touched (CarpetX's
-// SyncGroupsByDirIProlongateOnlyAligned); without subcycling every pair is.
-void ProlongateHaloFromAlignedParents(const cGH *cctkGH,
-                                      const std::vector<int> &groups, int tl);
-
 } // namespace AsterX
 
 #endif // #ifndef ASTERX_SYNC_HXX

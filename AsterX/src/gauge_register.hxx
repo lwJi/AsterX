@@ -12,12 +12,12 @@ namespace AsterX {
 //   - CarpetX::use_subcycling = yes, the only configuration in which the
 //     coarse and fine levels accumulate different time integrals of G at
 //     the nodes they share.
-// Under subcycling CarpetX rejects its restrict-during-sync mode, so the
-// CCTK_POSTRESTRICT bin the reconcile hangs on is always traversed when the
-// register is active. The schedule.ccl block that schedules the reconcile
-// tests the same three conditions, so when inactive IG_rhs = 0, no
-// reconcile is scheduled, and the run is bit-identical to one without the
-// register.
+// Under subcycling CarpetX rejects its restrict-during-sync mode, so it
+// restricts explicitly and the CarpetX_PreRestrict group the reconcile hangs
+// on is always traversed when the register is active. The schedule.ccl block
+// that schedules the reconcile tests the same three conditions, so when
+// inactive IG_rhs = 0, no reconcile is scheduled, and the run is
+// bit-identical to one without the register.
 inline bool gauge_register_active() {
   DECLARE_CCTK_PARAMETERS;
   return gauge_register &&

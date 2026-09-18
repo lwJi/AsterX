@@ -45,13 +45,6 @@ void SyncGhostsOnly(const cGH *const cctkGH, const std::vector<int> &groups) {
   SyncGroupsByDirIGhostOnly(cctkGH, groups.size(), groups.data(), nullptr);
 }
 
-void ProlongateHaloFromAlignedParents(const cGH *const cctkGH,
-                                      const std::vector<int> &groups,
-                                      const int tl) {
-  SyncGroupsByDirIProlongateOnlyAligned(cctkGH, groups.size(), groups.data(),
-                                        nullptr, tl);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 extern "C" void AsterX_Sync(CCTK_ARGUMENTS) {

@@ -169,12 +169,18 @@ SCHEDULE AsterX_Sync AT post_recover_variables BEFORE ODESolvers_PostStep
 # Nodal gauge register reconcile. Active only under subcycling: that is the
 # only configuration in which the coarse and fine levels accumulate different
 # gauge integrals at shared nodes, and CarpetX then rejects its
-# restrict-during-sync mode, so it traverses CCTK_POSTRESTRICT once per
-# time-aligned pass, right after it restricted the evolved variables and
-# prolongated their fine ghost halos. Running BEFORE ODESolvers_PostStep means
-# this pass's B, con2prim, G, E and output already see the corrected coarse
-# edges, and the AsterX_Sync in ODESolvers_PostStep refreshes the same-level
-# ghosts of the corrected Avec for free.
+# restrict-during-sync mode, so it restricts explicitly and traverses
+# CarpetX_PreRestrict once per time-aligned pass, after widening the level
+# window to every level at the current time and immediately before it
+# restricts. The group applies the coarse-edge gauge shift there; the driver's
+# own Restrict then resets every fine-owned coarse edge from the fine level and
+# its ProlongateRestrictedGFs refills the fine Avec ghost halo from the
+# corrected coarse level, so the register issues no Avec transfer of its own.
+# ODESolvers_PostStep in CCTK_POSTRESTRICT runs after those transfers, so this
+# pass's B, con2prim, G, E and output see the corrected coarse edges, and its
+# AsterX_Sync refreshes the same-level ghosts of the corrected Avec for free.
+# Requires a CarpetX that provides the CarpetX_PreRestrict group; against one
+# that does not, the group is never traversed and the register is inert.
 # The correction runs on every pass, including the first full cascade after a
 # regrid: on a two-level run every regrid happens at a time-aligned point with
 # IG = 0 on every level, so the prolongated ledger on new fine points is exact.
@@ -182,7 +188,7 @@ SCHEDULE AsterX_Sync AT post_recover_variables BEFORE ODESolvers_PostStep
 # conditions, so when this block is not scheduled IG_rhs = 0 as well.
 if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz") && use_subcycling)
 {
-  SCHEDULE GROUP AsterX_GaugeRegisterGroup AT postrestrict BEFORE ODESolvers_PostStep
+  SCHEDULE GROUP AsterX_GaugeRegisterGroup IN CarpetX_PreRestrict
   {
   } "Reconcile the coarse Avec edges near each refinement boundary to the fine level's gauge integral"
 
@@ -207,13 +213,7 @@ if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz") 
     WRITES: Avec_x(interior) Avec_y(interior) Avec_z(interior)
   } "Avec_i -= D_i (IGr - IG) on every coarse edge (a gauge transformation)"
 
-  SCHEDULE AsterX_GaugeRestrictAvec IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeCorrectAvec
-  {
-    LANG: C
-    OPTIONS: global
-  } "Restrict Avec from every time-aligned child again, then re-prolongate the child's Avec ghost halo"
-
-  SCHEDULE AsterX_GaugeAdoptIG IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeRestrictAvec
+  SCHEDULE AsterX_GaugeAdoptIG IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeCorrectAvec
   {
     LANG: C
     READS: IG(everywhere) IGr(everywhere)
