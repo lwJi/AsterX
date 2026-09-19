@@ -114,6 +114,19 @@ CCTK_REAL Psi TYPE=gf CENTERING={vvv} TAGS='rhs="Psi_rhs" prolongation_type="her
 
 CCTK_REAL Psi_rhs TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "t-component of vector potential RHS"
 
+# ----- nodal gauge register
+
+# IG is an evolved vertex ledger with IG_rhs = G: after a step, dIG at a
+# node is bit-for-bit the gauge integral int G dt that this level applied to
+# the edges touching the node. It is excluded from the driver's automatic
+# restriction (restrict="no") so the coarse ledger survives until AsterX
+# compares it with the fine one. The prolongation settings mirror Psi.
+CCTK_REAL IG TYPE=gf CENTERING={vvv} TAGS='rhs="IG_rhs" restrict="no" prolongation_type="hermite" prolongation_order=5' "Nodal gauge register: int G dt applied by this level"
+
+CCTK_REAL IG_rhs TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"' "RHS of IG (= G when the gauge register is active, 0 otherwise)"
+
+CCTK_REAL IGr TYPE=gf CENTERING={vvv} TAGS='checkpoint="no" restrict="no"' "Scratch: IG restricted from the time-aligned child level"
+
 CCTK_REAL Fbeta TYPE=gf CENTERING={vvv} TAGS='checkpoint="no"'
 {
   Fbetax, Fbetay, Fbetaz
