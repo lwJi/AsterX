@@ -165,28 +165,59 @@ reconcile runs either.
 
 \emph{Cost.} Storage for \texttt{IG}, \texttt{IG\_rhs} and the scratch
 \texttt{IGr} is always allocated (ODESolvers requires storage on every
-rhs-tagged group), \texttt{IG\_rhs} is written inside the \texttt{Psi} RHS
-loop, and \texttt{IG} is synchronized with the other evolved variables after
-every stage whether or not the register is active (the driver requires every
-evolved group to be valid everywhere at the top of each iteration). An inert
-run therefore still pays the ghost synchronization of one vertex grid
-function, but no extra kernel and no reconcile. An active run adds, per
-time-aligned pass, one nodal restriction and one ghost synchronization of the
-scratch ledger \texttt{IGr} plus the local shift and adopt kernels; the
-register issues no \texttt{Avec} transfer of its own, since the driver's
-restriction and halo refill follow the shift.
+rhs-tagged group). \texttt{IG\_rhs} is written on every point, ghosts and
+outer boundary included, in a vertex loop of its own after the \texttt{Psi}
+RHS, so the RK update leaves the ledger's ghosts finite without
+communication, and \texttt{IG} is in no per-stage or post-regrid
+synchronization list: under subcycling ODESolvers flags every evolved group
+valid everywhere after each stage, and without subcycling a local write-only
+pass (\texttt{AsterX\_GaugeZeroIG} in \texttt{ODESolvers\_PostStep}) keeps the
+inert ledger at zero and valid everywhere. The one synchronization of
+\texttt{IG} outside the register is after checkpoint recovery, because the
+checkpoint holds only its interior. An inert run therefore never communicates
+the ledger; it pays one vertex RHS write and the RK update of one vertex grid
+function, and no reconcile. An active run adds, per time-aligned pass, one
+nodal restriction of \texttt{IGr} per aligned level pair (the one transfer the
+correction depends on), the whole-level copy \texttt{IGr = IG}, and the shift
+and adopt kernels, which run only on the band of coarse edges and nodes
+within one stencil of each coarsened fine-box face; that band is computed
+from the AMReX box geometry on every pass, locally and without communication,
+and is empty on a level without a time-aligned child. On a full cascade
+\texttt{IG} is zeroed on every level. At \texttt{mag\_correction\_order = 2}
+the restriction is the register's only communication; at orders 4 and 6,
+where the edge stencil reads one or two ghost vertices of both ledgers, the
+register also issues one same-level ghost synchronization of \texttt{IG} and
+\texttt{IGr} per pass, inside \texttt{AsterX\_GaugeRestrictIGr}. The register
+issues no \texttt{Avec} transfer of its own, since the driver's restriction
+and halo refill follow the shift. Measured on the two register tests below
+(driver verbose log and the TimerReport output the test parfiles write, per
+coarse step): the register's ledger restrictions stayed at 1 (two levels) and
+3 (three levels), its ghost synchronizations of the scratch ledger went from
+2 and 5 level-syncs to 0, the per-stage synchronizations carrying \texttt{IG}
+from 12 and 28 to 0, and with poisoning off the four register routines took
+8\,ms instead of 89\,ms (two levels) and 6\,ms instead of 25\,ms (three
+levels) over the 100-iteration test runs, whose evolution takes 41\,s and
+26\,s.
 
 \emph{Validation and tests.} On a two-level magnetised TOV run with
 \texttt{mag\_correction\_order = 2}, the register reduces the interface
 $B$-shell metric by a factor of about 2360 ($2.1\times10^{-14}$ to
 $9.1\times10^{-18}$) and brings the subcycled interface profile onto the
-non-subcycled one. Three regression tests cover the AMR configurations:
+non-subcycled one. Four regression tests cover the AMR configurations:
 \texttt{magTOV\_Z4c\_AMR\_SC} and \texttt{magTOV\_Z4c\_AMR\_SC\_norestrict}
 run subcycled with \texttt{gauge\_register = no} and pin the subcycled path
 bit-for-bit against reference data that predate the register;
 \texttt{magTOV\_Z4c\_AMR\_SC\_gauge\_register} runs the same setup as
 \texttt{magTOV\_Z4c\_AMR\_SC} with the register on and CarpetX poisoning at
 its default, against reference data generated with the register on;
+\texttt{magTOV\_Z4c\_AMR\_SC\_gauge\_register\_3lev} is the same test with a
+third level of half-width 1 nested inside the radius-3 level and pins the
+partial cascade, on which the middle level adopts the fine ledger and carries
+it into the next pass, a path a two-level run never exercises. The references
+of both register tests were generated with the whole-level, per-stage-synced
+register, and the band-limited register without the ledger syncs reproduces
+them bit for bit, at one and two processes, at orders 2, 4 and 6, with
+several blocks per level, and across regrid and checkpoint recovery.
 \texttt{magTOV\_Z4c\_AMR} is not subcycled, so the register is inert there.
 
 \subsection{Interaction With Other Thorns}

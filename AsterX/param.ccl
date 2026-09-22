@@ -39,8 +39,22 @@ BOOLEAN restrict_fluxes "Restrict fluxes and the E/G auxiliary terms fine-to-coa
 # one gauge integral per shared node; the driver's own restriction and halo
 # refill then follow, so the register issues no Avec transfer itself. IG is
 # re-zeroed on every full cascade. The register never enters the RHS and only
-# changes Avec within one gauge-stencil width of a refinement boundary. It
-# requires a CarpetX that provides the CarpetX_PreRestrict group; against one
+# changes Avec within one gauge-stencil width of a refinement boundary: the
+# shift and the adopt run only on the band of coarse edges and nodes within a
+# stencil of each coarsened fine-box face, computed from the AMReX box
+# geometry on every pass (the copy IGr = IG and the full-cascade IG = 0 stay
+# whole-level).
+# Communication: one nodal restriction of the scratch ledger IGr per
+# time-aligned level pair and, only when mag_correction_order > 2 (where the
+# edge stencil reads ghost vertices), one same-level ghost sync of IG and IGr
+# per pass, issued inside the register. IG is in no per-stage or post-regrid
+# SYNC list: IG_rhs is written on every point, ghosts included, so the
+# ledger's ghosts stay finite without communication, and ODESolvers flags it
+# valid everywhere after each stage. It is synced once on checkpoint recovery
+# (the checkpoint holds only its interior). On an inactive run the ledger is
+# never communicated at all (without subcycling AsterX_GaugeZeroIG keeps it
+# zero and valid everywhere locally).
+# It requires a CarpetX that provides the CarpetX_PreRestrict group; against one
 # that does not, the group is never traversed and the register is inert.
 # It is active only when all of the following hold: gauge_register = yes,
 # vector_potential_gauge = "generalized Lorenz", and
@@ -52,7 +66,7 @@ BOOLEAN restrict_fluxes "Restrict fluxes and the E/G auxiliary terms fine-to-coa
 # being re-zeroed; this has no effect on Avec, since no reconcile runs either.
 # Storage for IG, IG_rhs and IGr is always allocated (ODESolvers needs storage
 # on every rhs-tagged group).
-BOOLEAN gauge_register "Evolve the nodal gauge register IG (IG_rhs = G) and reconcile coarse Avec edges to the fine gauge integral before each time-aligned restriction. Only active in the generalized Lorenz gauge with CarpetX::use_subcycling = yes; otherwise the register is inert and the run is unchanged." STEERABLE=never
+BOOLEAN gauge_register "Evolve the nodal gauge register IG (IG_rhs = G) and reconcile coarse Avec edges to the fine gauge integral before each time-aligned restriction, on the band of edges within a stencil of each refinement boundary. Only active in the generalized Lorenz gauge with CarpetX::use_subcycling = yes; otherwise the register is inert and the run is unchanged. When active its only communication is one nodal restriction of the scratch ledger IGr per time-aligned level pair, plus one ghost sync of IG and IGr per pass above mag_correction_order 2; IG is in no per-stage SYNC list and is never communicated on an inactive run." STEERABLE=never
 {
 } "yes"
 
