@@ -140,14 +140,25 @@ SCHEDULE AsterX_GaugeRegisterInit IN AsterX_InitialGroup
   WRITES: IG(everywhere)
 } "Set the nodal gauge register IG to zero initially"
 
-# IG is synced unconditionally alongside the other evolved variables: CarpetX's
-# CycleTimelevels requires every rhs-tagged group to be valid everywhere at the
-# top of each iteration, whether or not the gauge register is active.
+# The nodal gauge register IG is in no per-stage or post-regrid SYNC list.
+# CarpetX's CycleTimelevels requires every rhs-tagged group to be valid
+# everywhere at the top of each iteration; for IG that holds without
+# communication: under subcycling ODESolvers flags every evolved group valid
+# everywhere after each RK stage and after checkpoint recovery, regrid leaves
+# groups valid everywhere, and IG_rhs is written on every point (ghosts
+# included) so the RK update leaves finite ghosts. Without subcycling
+# AsterX_GaugeZeroIG below keeps IG = 0 and valid everywhere. At
+# mag_correction_order 2 nothing reads a ghost vertex of IG; above order 2 the
+# register ghost-syncs IG and IGr itself, inside AsterX_GaugeRestrictIGr. The
+# one exception is checkpoint recovery (AT post_recover_variables below): a
+# checkpoint holds only the interior of IG, and the recovery flags the whole
+# grid valid without filling the same-level ghosts or the outer boundary, so
+# the ledger is synced once there, as the other evolved variables are.
 SCHEDULE AsterX_Sync AT postregrid
 {
   LANG: C
   OPTIONS: global
-  SYNC: cons_vector Avec_x Avec_y Avec_z Psi IG
+  SYNC: cons_vector Avec_x Avec_y Avec_z Psi
   SYNC: saved_prims
 } "Synchronize"
 
@@ -156,15 +167,35 @@ SCHEDULE AsterX_Sync IN ODESolvers_PostStep
   LANG: C
   OPTIONS: global
   SYNC: saved_prims
-  SYNC: cons_vector Avec_x Avec_y Avec_z Psi IG
+  SYNC: cons_vector Avec_x Avec_y Avec_z Psi
 } "Synchronize"
 
+# IG once per recovery: the checkpoint holds only its interior, and nothing
+# else fills its same-level ghosts and outer boundary before the driver's
+# poison scan at the first CycleTimelevels (the recovery prolongates only the
+# refinement-boundary halo). Not a per-stage transfer.
 SCHEDULE AsterX_Sync AT post_recover_variables BEFORE ODESolvers_PostStep
 {
   LANG: C
   OPTIONS: global
   SYNC: saved_prims
+  SYNC: IG
 } "Synchronize"
+
+# Without subcycling the register is inert and IG is identically zero, but
+# CarpetX still requires every evolved group to be valid everywhere at the top
+# of each iteration and the non-subcycled ODESolvers flags only the interior
+# after its update. This local write-only pass keeps the ledger valid
+# everywhere without a sync (ODESolvers_PostStep is also traversed at
+# postinitial, postregrid and post_recover_variables).
+if (!use_subcycling)
+{
+  SCHEDULE AsterX_GaugeZeroIG IN ODESolvers_PostStep
+  {
+    LANG: C
+    WRITES: IG(everywhere)
+  } "IG = 0 on an inert, non-subcycled run (keeps the ledger valid everywhere without a sync)"
+}
 
 # Nodal gauge register reconcile. Active only under subcycling: that is the
 # only configuration in which the coarse and fine levels accumulate different
@@ -179,6 +210,12 @@ SCHEDULE AsterX_Sync AT post_recover_variables BEFORE ODESolvers_PostStep
 # ODESolvers_PostStep in CCTK_POSTRESTRICT runs after those transfers, so this
 # pass's B, con2prim, G, E and output see the corrected coarse edges, and its
 # AsterX_Sync refreshes the same-level ghosts of the corrected Avec for free.
+# The register's own communication is one nodal restriction of the scratch
+# ledger IGr per aligned pair; the ledgers IG and IGr are ghost-synced only
+# above mag_correction_order 2, where the edge stencil reads ghost vertices,
+# and IG is otherwise never communicated during the evolution (it is in no
+# per-stage or post-regrid SYNC list; it is synced once on checkpoint
+# recovery, see AsterX_Sync AT post_recover_variables).
 # Requires a CarpetX that provides the CarpetX_PreRestrict group; against one
 # that does not, the group is never traversed and the register is inert.
 # The correction runs on every pass, including the first full cascade after a
@@ -203,7 +240,7 @@ if (gauge_register && CCTK_Equals(vector_potential_gauge, "generalized Lorenz") 
   {
     LANG: C
     OPTIONS: global
-  } "IGr = restrict(IG) from every time-aligned child, then ghost-sync IGr"
+  } "IGr = restrict(IG) from every time-aligned child; ghost-sync IG and IGr only above mag_correction_order 2"
 
   SCHEDULE AsterX_GaugeCorrectAvec IN AsterX_GaugeRegisterGroup AFTER AsterX_GaugeRestrictIGr
   {
@@ -399,7 +436,7 @@ SCHEDULE AsterX_FreezeEvolutionRHS IN ODESolvers_RHS
   LANG: C
   WRITES: rhs_vector(interior)
   WRITES: Avec_x_rhs(interior) Avec_y_rhs(interior) Avec_z_rhs(interior) Psi_rhs(interior)
-  WRITES: IG_rhs(interior)
+  WRITES: IG_rhs(everywhere)
 } "Set AsterX RHS to zero when freeze_evolution is enabled"
 }
 
@@ -440,7 +477,7 @@ SCHEDULE AsterX_RHS IN AsterX_RHSGroup AFTER AsterX_SourceTerms
   WRITES: rhs_vector(interior)
   WRITES: theta_tot(interior)
   WRITES: Avec_x_rhs(interior) Avec_y_rhs(interior) Avec_z_rhs(interior) Psi_rhs(interior)
-  WRITES: IG_rhs(interior)
+  WRITES: IG_rhs(everywhere)
 } "Update the RHS of the hydro equations with the flux contributions"
 
 if(update_tmunu){
