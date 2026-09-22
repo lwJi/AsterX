@@ -43,9 +43,27 @@ extern "C" void AsterX_GaugeRegisterInit(CCTK_ARGUMENTS) {
 //
 // With IGr the ledger restricted from the aligned child (and IGr = IG on
 // every other point), per aligned pair on the coarse level:
-//   A_i -= D_i IGr - D_i IG   on every interior edge   a pure gauge transformation
-//   IG := IGr                                          the coarse ledger adopts the fine
+//   A_i -= D_i IGr - D_i IG   on the interior edges whose stencil touches a
+//                             restricted node   a pure gauge transformation
+//   IG := IGr                 on the restricted nodes   the coarse ledger
+//                             adopts the fine
 // and on a full cascade (window reaches level 0) IG := 0 on every level.
+//
+// Band. Everywhere else IGr == IG bit for bit, so the shift is exactly zero
+// and the adopt would rewrite the value already there; those points are
+// simply not visited. The set of points that can differ is exact geometry:
+// the nodal restriction writes the coarse nodes of the child's boxes
+// coarsened by 2 (faces included), and the forward-midpoint stencil of an
+// edge reaches reach = mag_correction_order/2 - 1 vertices past its
+// endpoints. AsterX_GaugeRestrictIGr has sync.cxx compute that band once per
+// pass from the child's current AMReX box array (a few local box
+// intersections per component, no communication), and the two band kernels
+// loop the stored boxes with loop_box_device. On a level without an aligned
+// child the band is empty and both kernels do nothing. The copy IGr = IG and
+// the full-cascade IG = 0 stay whole-level: the copy is what makes IGr == IG
+// off the band (and IGr, being non-checkpointed scratch, must be written
+// everywhere it is declared), and the zero is what keeps the coarse ledger
+// bounded on the nodes a regrid would prolongate.
 //
 // Transfers. The one transfer the correction depends on is the nodal
 // restriction of IGr from each aligned child in AsterX_GaugeRestrictIGr. At
@@ -70,9 +88,10 @@ extern "C" void AsterX_GaugeRegisterInit(CCTK_ARGUMENTS) {
 // satisfied with no sync of IG. Without subcycling the register is inert and
 // AsterX_GaugeZeroIG (below) keeps IG = 0 and valid everywhere instead.
 //
-// The local kernels do not test for an aligned child: on a level without one
-// IGr is an untouched copy of IG, so both the edge update and the adopt are
-// exact no-ops (the two stencils cancel bit for bit).
+// The local kernels do not test for an aligned child themselves: on a level
+// without one the band table has no entry, so the edge update and the
+// partial-cascade adopt loop nothing (before the band, they ran on every
+// point and were no-ops by arithmetic cancellation).
 //
 // Regrids need no special handling. CarpetX regrids at the top of an Evolve
 // iteration, before the batch loop, so on a two-level run every regrid that
@@ -92,20 +111,31 @@ void GaugeCorrectAvec_impl(CCTK_ARGUMENTS, const int order) {
 
   const vec<GF3D2<CCTK_REAL>, dim> gf_Avec{Avec_x, Avec_y, Avec_z};
 
-  // Same loop and same operator as CalcRHSofAvec_impl uses for -d_i G, so
-  // the correction is exact at any mag_correction_order. At order 2 the
-  // stencil reads only the edge's two endpoints, both interior vertices. The
-  // order-4 and order-6 stencils read ghost vertices of IGr and IG; those
-  // come from the ghost sync of both ledgers that AsterX_GaugeRestrictIGr
-  // issues above order 2 (the ledgers' only ghost exchange), and
-  // AsterX_GaugeCopyIGr ran before AsterX_GaugeRestrictIGr so IGr's
-  // uncovered nodes and ghosts are that same IG.
-  grid.loop_int_device<i == 0, i == 1, i == 2>(
-      grid.nghostzones,
-      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        gf_Avec(i)(p.I) -= calc_fd_forward_midpoint<i>(IGr, p, order) -
-                           calc_fd_forward_midpoint<i>(IG, p, order);
-      });
+  // Same loop centering and same operator as CalcRHSofAvec_impl uses for
+  // -d_i G, so the correction is exact at any mag_correction_order; only the
+  // edges visited differ: the band boxes of this component, each clipped to
+  // this tile (the clip box_int applies), with the boundary box loop_int
+  // would derive, so PointDesc is what loop_int would hand the body. At
+  // order 2 the stencil reads only the edge's two endpoints, both interior
+  // vertices. The order-4 and order-6 stencils read ghost vertices of IGr
+  // and IG; those come from the ghost sync of both ledgers that
+  // AsterX_GaugeRestrictIGr issues above order 2 (the ledgers' only ghost
+  // exchange), and AsterX_GaugeCopyIGr ran before AsterX_GaugeRestrictIGr so
+  // IGr's uncovered nodes and ghosts are that same IG.
+  const gauge_band_t &band = gauge_band(grid.patch, grid.level, grid.component);
+  vect<int, dim> bnd_min, bnd_max;
+  grid.boundary_box<i == 0, i == 1, i == 2>(grid.nghostzones, bnd_min, bnd_max);
+  using std::max, std::min;
+  for (const box_t &b : band.edges[i]) {
+    const vect<int, dim> lo = max(b.lo, grid.tmin);
+    const vect<int, dim> hi = min(b.hi, grid.tmax);
+    grid.loop_box_device<i == 0, i == 1, i == 2>(
+        bnd_min, bnd_max, lo, hi,
+        [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+          gf_Avec(i)(p.I) -= calc_fd_forward_midpoint<i>(IGr, p, order) -
+                             calc_fd_forward_midpoint<i>(IG, p, order);
+        });
+  }
 }
 
 } // namespace
@@ -119,11 +149,13 @@ extern "C" void AsterX_GaugeCopyIGr(CCTK_ARGUMENTS) {
                             CCTK_ATTRIBUTE_ALWAYS_INLINE { IGr(p.I) = IG(p.I); });
 }
 
-// IGr := restrict(IG_fine) on every level with an aligned child (the one
-// transfer the correction depends on). Above mag_correction_order 2 the edge
-// stencil reads one or two ghost vertices of both ledgers, so a same-level
-// ghost exchange of IG and IGr follows; at order 2 nothing reads a ledger
-// ghost and the register issues no other communication.
+// Compute the coarse-fine bands for this pass, then IGr := restrict(IG_fine)
+// on every level with an aligned child (the one transfer the correction
+// depends on). Above mag_correction_order 2 the edge stencil reads one or two
+// ghost vertices of both ledgers, so a same-level ghost exchange of IG and
+// IGr follows; at order 2 nothing reads a ledger ghost and the register
+// issues no other communication. The band computation is local (box
+// geometry only) and adds none.
 extern "C" void AsterX_GaugeRestrictIGr(CCTK_ARGUMENTS) {
   DECLARE_CCTK_PARAMETERS;
 
@@ -131,15 +163,19 @@ extern "C" void AsterX_GaugeRestrictIGr(CCTK_ARGUMENTS) {
   static const std::vector<int> ledgers = {CCTK_GroupIndex("AsterX::IG"),
                                            CCTK_GroupIndex("AsterX::IGr")};
 
+  // reach: vertices the forward-midpoint stencil reads past an edge's
+  // endpoints on each side (0 at order 2, 1 at order 4, 2 at order 6)
+  ComputeGaugeBands(cctkGH, mag_correction_order / 2 - 1);
   RestrictFromAlignedChildren(cctkGH, scratch);
   if (mag_correction_order > 2)
     SyncGhostsOnly(cctkGH, ledgers);
 }
 
-// A_i -= D_i (IGr - IG) on every interior edge of every active level. This is
-// a gauge transformation (B unchanged); the driver's restriction that follows
-// this group turns it into a physical correction by undoing it on every
-// fine-owned edge.
+// A_i -= D_i (IGr - IG) on the interior edges within a stencil of each
+// refinement boundary (the band of this component; nothing on a level
+// without an aligned child). This is a gauge transformation (B unchanged);
+// the driver's restriction that follows this group turns it into a physical
+// correction by undoing it on every fine-owned edge.
 extern "C" void AsterX_GaugeCorrectAvec(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_GaugeCorrectAvec;
   DECLARE_CCTK_PARAMETERS;
@@ -149,20 +185,33 @@ extern "C" void AsterX_GaugeCorrectAvec(CCTK_ARGUMENTS) {
   GaugeCorrectAvec_impl<2>(CCTK_PASS_CTOC, mag_correction_order);
 }
 
-// IG := 0 on a full cascade (all levels agree and are re-zeroed together so
-// |IG| never exceeds one coarse step's worth of int G dt), otherwise
-// IG := IGr, i.e. the coarse ledger adopts the fine one on covered and
-// interface nodes and is unchanged elsewhere.
+// IG := 0 on every point on a full cascade (all levels agree and are
+// re-zeroed together so |IG| never exceeds one coarse step's worth of
+// int G dt), otherwise IG := IGr on the restricted nodes (the band of this
+// component), i.e. the coarse ledger adopts the fine one on covered and
+// interface nodes; everywhere else IGr == IG already.
 extern "C" void AsterX_GaugeAdoptIG(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_AsterX_GaugeAdoptIG;
 
-  const bool zero = full_cascade();
+  if (full_cascade()) {
+    grid.loop_all_device<0, 0, 0>(
+        grid.nghostzones, [=] CCTK_DEVICE(const PointDesc &p)
+                              CCTK_ATTRIBUTE_ALWAYS_INLINE { IG(p.I) = 0.0; });
+    return;
+  }
 
-  grid.loop_all_device<0, 0, 0>(
-      grid.nghostzones,
-      [=] CCTK_DEVICE(const PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-        IG(p.I) = zero ? 0.0 : IGr(p.I);
-      });
+  const gauge_band_t &band = gauge_band(grid.patch, grid.level, grid.component);
+  vect<int, dim> bnd_min, bnd_max;
+  grid.boundary_box<0, 0, 0>(grid.nghostzones, bnd_min, bnd_max);
+  using std::max, std::min;
+  for (const box_t &b : band.nodes) {
+    const vect<int, dim> lo = max(b.lo, grid.tmin);
+    const vect<int, dim> hi = min(b.hi, grid.tmax);
+    grid.loop_box_device<0, 0, 0>(
+        bnd_min, bnd_max, lo, hi,
+        [=] CCTK_DEVICE(const PointDesc &p)
+            CCTK_ATTRIBUTE_ALWAYS_INLINE { IG(p.I) = IGr(p.I); });
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
