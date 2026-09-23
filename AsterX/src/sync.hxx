@@ -26,8 +26,14 @@ bool full_cascade();
 
 // Restrict `groups` fine-to-coarse onto every level that has an aligned
 // child, finest pair first, without poisoning the restricted region.
-void RestrictFromAlignedChildren(const cGH *cctkGH,
-                                 const std::vector<int> &groups);
+// Returns the number of aligned pairs restricted.
+int RestrictFromAlignedChildren(const cGH *cctkGH,
+                                const std::vector<int> &groups);
+
+// Block the host until every launched device kernel has finished (no-op on
+// a CPU build). TEMPORARY (gauge-register timing): lets a host-side timer
+// around an asynchronous transfer include the kernel time.
+void DeviceSynchronize();
 
 // Same-level ghost exchange (plus outer boundary conditions) of `groups` on
 // every active level. No prolongation.

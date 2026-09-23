@@ -7,6 +7,7 @@
 #include "gauge_register.hxx"
 #include "sync.hxx"
 
+#include <cassert>
 #include <vector>
 
 namespace AsterX {
@@ -101,14 +102,93 @@ extern "C" void AsterX_GaugeCopyIGr(CCTK_ARGUMENTS) {
                             CCTK_ATTRIBUTE_ALWAYS_INLINE { IGr(p.I) = IG(p.I); });
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// TEMPORARY timing instrumentation (throwaway branch gauge_register_timers).
+//
+// CarpetX already wraps every scheduled function in a flesh timer named
+// "CallFunction AsterX_GaugeRegisterGroup: AsterX::<routine>", so the split among
+// the four reconcile routines is free. What it does not separate is the two
+// halves of AsterX_GaugeRestrictIGr (the fine-to-coarse restrict and the
+// same-level ghost sync), nor does it count how many passes and aligned pairs
+// the totals are spread over. Both are added here. The counters are printed
+// at CCTK_TERMINATE; the timers land in the TimerReport output like every
+// other flesh timer.
+
+namespace {
+
+// Minimal RAII around a flesh timer. CarpetX::Timer does the same (plus nvtx
+// on CUDA), but pulling CarpetX headers into this file is avoided on purpose:
+// sync.cxx is the one AsterX file that includes driver internals.
+class FleshTimer {
+  int handle;
+
+public:
+  explicit FleshTimer(const char *const name)
+      : handle(CCTK_TimerCreate(name)) {
+    assert(handle >= 0);
+  }
+  void start() { CCTK_TimerStartI(handle); }
+  void stop() { CCTK_TimerStopI(handle); }
+};
+
+class FleshInterval {
+  FleshTimer &timer;
+
+public:
+  explicit FleshInterval(FleshTimer &timer) : timer(timer) { timer.start(); }
+  ~FleshInterval() { timer.stop(); }
+  FleshInterval(const FleshInterval &) = delete;
+  FleshInterval &operator=(const FleshInterval &) = delete;
+};
+
+// Pass statistics, accumulated in AsterX_GaugeRestrictIGr (a global
+// function, called exactly once per CarpetX_PreRestrict traversal).
+long long stat_passes = 0;        // PreRestrict traversals with the group
+long long stat_full_cascades = 0; // ... of which the window reached level 0
+long long stat_aligned_pairs = 0; // aligned (coarse, fine) pairs restricted
+
+} // namespace
+
 // IGr := restrict(IG_fine) on every level with an aligned child, then a
 // same-level ghost exchange of IGr so the order-4 stencil can read one ghost
 // vertex of it.
 extern "C" void AsterX_GaugeRestrictIGr(CCTK_ARGUMENTS) {
   static const std::vector<int> groups = {CCTK_GroupIndex("AsterX::IGr")};
 
-  RestrictFromAlignedChildren(cctkGH, groups);
-  SyncGhostsOnly(cctkGH, groups);
+  static FleshTimer timer_restrict("AsterX_GaugeRestrictIGr::restrict");
+  static FleshTimer timer_sync("AsterX_GaugeRestrictIGr::ghost_sync");
+
+  int npairs;
+  {
+    FleshInterval interval(timer_restrict);
+    npairs = RestrictFromAlignedChildren(cctkGH, groups);
+    // Restrict_impl launches its average_down kernels asynchronously and
+    // does not wait for them; the host timer would otherwise stop at launch.
+    DeviceSynchronize();
+  }
+  {
+    FleshInterval interval(timer_sync);
+    // SyncGroupsByDirIGhostOnly synchronizes the device itself before it
+    // returns, so no extra DeviceSynchronize is needed here.
+    SyncGhostsOnly(cctkGH, groups);
+  }
+
+  ++stat_passes;
+  if (full_cascade())
+    ++stat_full_cascades;
+  stat_aligned_pairs += npairs;
+}
+
+// TEMPORARY: print the pass statistics so the TimerReport totals can be
+// normalized per pass and per aligned pair. Scheduled in CCTK_TERMINATE.
+extern "C" void AsterX_GaugeRegisterTimingReport(CCTK_ARGUMENTS) {
+  CCTK_VINFO("Gauge register timing: %lld PreRestrict passes (%lld full "
+             "cascades, %lld partial), %lld aligned level pairs restricted "
+             "(%.3f per pass)",
+             stat_passes, stat_full_cascades, stat_passes - stat_full_cascades,
+             stat_aligned_pairs,
+             stat_passes > 0 ? double(stat_aligned_pairs) / double(stat_passes)
+                             : 0.0);
 }
 
 // A_i -= D_i (IGr - IG) on every interior edge of every active level. This is

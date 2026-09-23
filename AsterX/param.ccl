@@ -56,6 +56,18 @@ BOOLEAN gauge_register "Evolve the nodal gauge register IG (IG_rhs = G) and reco
 {
 } "yes"
 
+# TEMPORARY (throwaway branch gauge_register_timers): with gauge_register = yes
+# and this = no, IG is still evolved (IG_rhs = G, one more evolved group in
+# every RK stage, sync and prolongation) but the AsterX_GaugeRegisterGroup
+# reconcile in CarpetX_PreRestrict is not scheduled. Avec is then NOT
+# corrected and IG is never re-zeroed; the run is physically wrong and exists
+# only to isolate the evolved-variable overhead of the register from the
+# reconcile cost: cost(reconcile) = t(on) - t(on, reconcile=no),
+# cost(evolving IG) = t(on, reconcile=no) - t(off).
+BOOLEAN gauge_register_reconcile "TEMPORARY timing hook: schedule the PreRestrict reconcile (no = evolve IG only, Avec uncorrected)" STEERABLE=never
+{
+} "yes"
+
 KEYWORD flux_type "Flux solver" STEERABLE=always
 {
   "LxF" :: ""

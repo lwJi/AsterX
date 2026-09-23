@@ -1,0 +1,187 @@
+###############################
+# TEMPORARY gauge-register timing run (branch gauge_register_timers).
+#
+# Frontier-sized magnetised TOV (6 levels, 256^3 base grid), generalized
+# Lorenz gauge, subcycling on, so the nodal gauge register is active. The
+# three files in this directory differ ONLY in the two lines under
+# "VARIANT" below:
+#   gr_off          gauge_register = no                       (baseline)
+#   gr_evolve_only  gauge_register = yes, reconcile = no      (IG evolved only)
+#   gr_on           gauge_register = yes, reconcile = yes     (full register)
+# so that
+#   cost(evolving IG)  = t(gr_evolve_only) - t(gr_off)
+#   cost(reconcile)    = t(gr_on) - t(gr_evolve_only)
+# and inside t(gr_on) the TimerReport entries
+#   CallFunction AsterX_GaugeRegisterGroup: AsterX::AsterX_Gauge{CopyIGr,RestrictIGr,CorrectAvec,AdoptIG}
+#   AsterX_GaugeRestrictIGr::restrict / ::ghost_sync
+# split the reconcile itself. Compare against the driver's own
+#   Restrict, Restrict::average_down, ProlongateRestrictedGFs (if present)
+# and normalize with the pass counts printed at termination
+# ("Gauge register timing: ...").
+#
+# Regridding is disabled and all field output is off so the timings are as
+# clean as possible. Same executable, same node count, same layout for all
+# three runs. gr_evolve_only is physically wrong (Avec uncorrected, IG never
+# re-zeroed); it exists only for the subtraction above.
+##############################
+ActiveThorns = "
+    ADMBaseX
+    BoxInBox
+    CarpetX
+    HydroBaseX
+    IOUtil
+    ODESolvers
+    TimerReport
+    TmunuBaseX
+    AsterX
+    AsterSeeds
+    Z4c
+    AsterMasks
+"
+
+$nlevels	= 6
+$ncells 	=  256
+
+CarpetX::verbose = no
+Cactus::presync_mode = "mixed-error"
+CarpetX::poison_undefined_values = no
+
+# Finest grid spacing is 0.15625 
+# To have a symmetric grid along 0, we have odd number of points (257) 
+# along each direction going from -20.078125 to +20.078125 for the finest level
+
+CarpetX::xmin = -642.5
+CarpetX::ymin = -642.5
+CarpetX::zmin = -642.5
+
+CarpetX::xmax = 642.5
+CarpetX::ymax = 642.5
+CarpetX::zmax = 642.5
+
+CarpetX::ncells_x = $ncells
+CarpetX::ncells_y = $ncells
+CarpetX::ncells_z = $ncells
+
+CarpetX::boundary_x =  "neumann"
+CarpetX::boundary_y =  "neumann"
+CarpetX::boundary_z =  "neumann"
+CarpetX::boundary_upper_x =  "neumann"
+CarpetX::boundary_upper_y =  "neumann"
+CarpetX::boundary_upper_z =  "neumann"
+
+CarpetX::max_num_levels = $nlevels
+CarpetX::regrid_every = 1000000000
+CarpetX::regrid_error_threshold = 0.9
+
+CarpetX::prolongation_type = "ddf"
+CarpetX::ghost_size = 3
+CarpetX::dtfac = 0.25
+
+CarpetX::blocking_factor_x = 8
+CarpetX::blocking_factor_y = 8
+CarpetX::blocking_factor_z = 8
+
+BoxInBox::num_regions = 1
+# Region 1
+BoxInBox::shape_1 = "cube"
+BoxInBox::num_levels_1 = $nlevels 
+BoxInBox::radius_1 = [ -1.0, 321.25, 160.625, 80.3125, 40.15625, 20.078125 ]
+
+
+#ADMBaseX::set_adm_variables_during_evolution = "yes"
+ADMBaseX::initial_data       = "tov"
+ADMBaseX::initial_lapse      = "tov"
+ADMBaseX::initial_shift      = "tov"
+ADMBaseX::initial_dtlapse    = "zero"
+ADMBaseX::initial_dtshift    = "zero"
+
+Z4c::calc_ADM_vars = yes                  # for Weyl
+Z4c::calc_ADMRHS_vars = no  #yes               # for Weyl
+Z4c::calc_constraints = yes
+Z4c::chi_floor = 1.0e-6
+Z4c::alphaG_floor = 1.0e-8
+Z4c::epsdiss = 0.32
+Z4c::boundary_conditions = "NewRadX"
+
+ActiveThorns = "TOVSolverX"
+TOVSolverX::TOV_Rho_Central[0] = 1.28e-3
+TOVSolverX::TOV_Gamma          = 2.0
+TOVSolverX::TOV_K              = 100.0
+TOVSolverX::TOV_Cowling = no
+
+
+AsterSeeds::test_type = "3DTest"
+AsterSeeds::test_case = "magTOV"
+AsterSeeds::Afield_config = "internal dipole"
+AsterSeeds::Ab = 100.0
+AsterSeeds::press_cut = 0.04
+AsterSeeds::press_max = 1.638e-4
+AsterSeeds::Avec_kappa = 2.0
+
+#AsterSeeds::Afield_config = "external dipole"
+#AsterSeeds::B0 = 1e-7
+#AsterSeeds::r0 = 5.0
+
+AsterX::debug_mode = "no"
+AsterX::flux_type = "HLLE"
+AsterX::vector_potential_gauge = "generalized Lorenz"
+# ~1.5 / dt_coarse with dx_coarse = 1285/256 and dtfac = 0.25 (Farris et al 2012)
+AsterX::lorenz_damp_fac = 1.2
+
+# Subcycling is what makes the register active; CarpetX rejects
+# restrict_during_sync under subcycling, so it must be off.
+CarpetX::use_subcycling = yes
+CarpetX::restrict_during_sync = no
+
+# ----- VARIANT -----
+AsterX::gauge_register = yes
+AsterX::gauge_register_reconcile = yes
+
+# -------------------
+AsterX::local_spatial_order = 4
+AsterX::local_estimate_error = "no"
+
+ReconX::reconstruction_method = "PPM"
+ReconX::ppm_zone_flattening = "yes"
+ReconX::ppm_shock_detection = "no"
+
+Con2PrimFactory::c2p_prime = "Noble"
+Con2PrimFactory::c2p_second = "Palenzuela"
+Con2PrimFactory::c2p_tol = 1e-8
+Con2PrimFactory::max_iter = 100
+Con2PrimFactory::rho_abs_min = 1e-11
+Con2PrimFactory::atmo_tol = 1e-3
+Con2PrimFactory::unit_test = "yes"
+Con2PrimFactory::B_lim = 1e8
+Con2PrimFactory::vw_lim = 1e8
+Con2PrimFactory::Ye_lenient = "yes"
+
+EOSX::evolution_eos = "IdealGas"
+EOSX::gl_gamma = 2.0
+EOSX::poly_gamma = 2.0
+EOSX::poly_k = 100
+EOSX::rho_max = 1e8
+EOSX::eps_max = 1e8
+
+# 256 finest-level iterations = 8 coarse steps with 6 levels; the widened
+# PreRestrict window fires every 2nd finest iteration, a full cascade every
+# 32nd. Bump this if the per-iteration time is noisy on your node count.
+Cactus::terminate = "iteration"
+Cactus::cctk_itlast = 256
+ODESolvers::method = "RK4"
+
+IO::out_dir = $parfile
+IO::out_every = 0
+CarpetX::out_norm_vars = " "
+CarpetX::out_metadata = no
+CarpetX::out_norm_omit_unstable = yes
+TimerReport::out_every = 0   # only at termination
+TimerReport::out_filename = "TimerReport"
+TimerReport::output_all_timers_together = yes
+TimerReport::output_all_timers_readable = yes
+TimerReport::n_top_timers = 50
+
+IO::checkpoint_ID = no
+IO::checkpoint_every = 0
+IO::checkpoint_on_terminate = no
+IO::recover = "no"

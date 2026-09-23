@@ -27,19 +27,25 @@ bool full_cascade() {
   return active_levels->min_level == 0;
 }
 
-void RestrictFromAlignedChildren(const cGH *const cctkGH,
-                                 const std::vector<int> &groups) {
+int RestrictFromAlignedChildren(const cGH *const cctkGH,
+                                const std::vector<int> &groups) {
   assert(active_levels);
+  int npairs = 0;
   active_levels->loop_fine_to_coarse([&](const auto &leveldata) {
     // Only restrict from a child level that is inside the active window
     // [min_level, max_level), i.e. one that is time-aligned with this level.
     // Under subcycling a coarse-only batch has no active child, so nothing
     // is restricted; without subcycling every level is active, so this is
     // the same as restricting from every level but the finest.
-    if (has_aligned_child(leveldata.level))
+    if (has_aligned_child(leveldata.level)) {
       RestrictNoPoison(cctkGH, leveldata.level, groups);
+      ++npairs;
+    }
   });
+  return npairs;
 }
+
+void DeviceSynchronize() { synchronize(); }
 
 void SyncGhostsOnly(const cGH *const cctkGH, const std::vector<int> &groups) {
   SyncGroupsByDirIGhostOnly(cctkGH, groups.size(), groups.data(), nullptr);
