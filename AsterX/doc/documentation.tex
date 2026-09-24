@@ -189,6 +189,32 @@ bit-for-bit against reference data that predate the register;
 its default, against reference data generated with the register on;
 \texttt{magTOV\_Z4c\_AMR} is not subcycled, so the register is inert there.
 
+\paragraph{Flux evaluation and restriction (\texttt{AsterX::restrict\_fluxes}).}
+The fluxes, the auxiliary terms $E$, $G$, $F$ of the vector potential
+evolution and the low-order flag are computed by the schedule group
+\texttt{AsterX\_FluxGroup}, which is traversed in two places. In
+\texttt{ODESolvers\_RHS} it runs immediately before the RHS routines that
+consume its output, so every RHS evaluation sees fluxes of the state it is
+evaluated on. At \texttt{CCTK\_POSTRESTRICT}, after
+\texttt{ODESolvers\_PostStep}, it runs once per time-aligned pass on every
+level at the current time; with \texttt{restrict\_fluxes = yes} (the default)
+the fluxes and $E$, $G$ are there restricted fine-to-coarse, so the coarse
+level's next first-stage RHS uses fluxes consistent with the fine level.
+Under subcycling this is the only traversal whose level window holds both
+members of each refinement pair. Without subcycling CarpetX restricts during
+synchronization and never traverses \texttt{CCTK\_POSTRESTRICT}; the
+restriction then happens inside the RHS traversal, whose window holds every
+level.
+
+The first RK stage that follows a postrestrict pass sees exactly the state that
+pass computed the fluxes for, so the RHS traversal skips the group there
+(\texttt{AsterX\_SetComputeFluxes} sets the schedule condition
+\texttt{compute\_fluxes} to 0 when every active level was marked fresh by
+\texttt{AsterX\_MarkFluxesFresh} at the end of the postrestrict pass). The
+mark is dropped whenever \texttt{AsterX\_Con2PrimGroup} recomputes the
+primitives outside the RK stages (regridding, recovery, seeding), since the
+state has changed. The net cost is one flux evaluation per RHS evaluation.
+
 \subsection{Interaction With Other Thorns}
 
 \subsection{Examples}

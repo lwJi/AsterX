@@ -37,9 +37,10 @@ extern "C" void AsterX_GaugeRegisterInit(CCTK_ARGUMENTS) {
 // own transfers that follow do the rest: its Restrict resets every fine-owned
 // coarse edge from the fine level, and its ProlongateRestrictedGFs refills
 // the fine Avec_* ghost halo from the corrected coarse interior. Nothing in
-// this group moves Avec_* across levels. ODESolvers_PostStep in
-// CCTK_POSTRESTRICT runs after those transfers, so everything downstream on
-// this pass (B from A, con2prim, G, E, output) sees the corrected edges.
+// this group moves Avec_* across levels. ODESolvers_PostStep and the
+// AsterX_FluxGroup in CCTK_POSTRESTRICT run after those transfers, so
+// everything downstream on this pass (B from A, con2prim, fluxes, G, E,
+// output) sees the corrected edges.
 //
 // With IGr the ledger restricted from the aligned child (and IGr = IG on
 // every other point), per aligned pair on the coarse level:

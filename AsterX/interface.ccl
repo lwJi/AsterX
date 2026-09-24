@@ -13,6 +13,10 @@ USES INCLUDE HEADER: aster_fd.hxx aster_interp.hxx aster_utils.hxx
 
 PUBLIC:
 
+# ----- schedule control
+
+CCTK_INT compute_fluxes TYPE=scalar TAGS='checkpoint="no"' "1 if AsterX_FluxGroup has to run in the current ODESolvers_RHS traversal, 0 if the postrestrict pass left the fluxes on every active level up to date; set by AsterX_SetComputeFluxes"
+
 # ----- evolved state variables
 
 # Note that the prolongation method and order are hard-coded and will

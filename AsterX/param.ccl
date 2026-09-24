@@ -23,7 +23,7 @@ BOOLEAN prolongate_dbstag "Shall we prolongate dBstag?" STEERABLE=always
 {
 } "no"
 
-BOOLEAN restrict_fluxes "Restrict fluxes and the E/G auxiliary terms fine-to-coarse after each PostStep on time-aligned levels" STEERABLE=always
+BOOLEAN restrict_fluxes "Restrict fluxes and the E/G auxiliary terms fine-to-coarse whenever AsterX_FluxGroup runs, on every level whose child is at the same time: at every RHS stage without subcycling, at the time-aligned postrestrict pass under subcycling" STEERABLE=always
 {
 } "yes"
 

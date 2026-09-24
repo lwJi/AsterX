@@ -26,6 +26,8 @@ STORAGE: LOflag etac
 
 STORAGE: theta_x theta_y theta_z theta_tot
 
+STORAGE: compute_fluxes
+
 
 if(unit_test)
 {
@@ -176,9 +178,10 @@ SCHEDULE AsterX_Sync AT post_recover_variables BEFORE ODESolvers_PostStep
 # own Restrict then resets every fine-owned coarse edge from the fine level and
 # its ProlongateRestrictedGFs refills the fine Avec ghost halo from the
 # corrected coarse level, so the register issues no Avec transfer of its own.
-# ODESolvers_PostStep in CCTK_POSTRESTRICT runs after those transfers, so this
-# pass's B, con2prim, G, E and output see the corrected coarse edges, and its
-# AsterX_Sync refreshes the same-level ghosts of the corrected Avec for free.
+# ODESolvers_PostStep and AsterX_FluxGroup in CCTK_POSTRESTRICT run after those
+# transfers, so this pass's B, con2prim, fluxes, G, E and output see the
+# corrected coarse edges, and its AsterX_Sync refreshes the same-level ghosts
+# of the corrected Avec for free.
 # Requires a CarpetX that provides the CarpetX_PreRestrict group; against one
 # that does not, the group is never traversed and the register is inert.
 # The correction runs on every pass, including the first full cascade after a
@@ -290,15 +293,9 @@ SCHEDULE AsterX_ApplyOuterBCOnPrim IN AsterX_Con2PrimGroup AFTER AsterX_Con2Prim
   OPTIONS: global
 } "Apply CarpetX boundary conditions on primitive variables"
 
-if(!freeze_evolution) {
-
-SCHEDULE GROUP AsterX_FluxGroup IN ODESolvers_PostStep AFTER AsterX_Con2PrimGroup BEFORE TmunuBaseX_SetTmunuVars
-{
-} "Calculate fluxes and auxiliary terms for the RHS"
-
 if(interpolate_failed_c2p)
 {
-  SCHEDULE AsterX_Con2Prim_Interpolate_Failed IN AsterX_FluxGroup BEFORE AsterX_Fluxes
+  SCHEDULE AsterX_Con2Prim_Interpolate_Failed IN AsterX_Con2PrimGroup AFTER AsterX_ApplyOuterBCOnPrim
   {
     LANG: C
     READS: ADMBaseX::metric(interior)
@@ -316,6 +313,63 @@ if(interpolate_failed_c2p)
     SYNC: cons_vector
   } "Interpolate those grid points where con2prim failed"
 }
+
+# Recomputing the primitives outside the RK stages means the state has changed
+# (postregrid, recovery, AsterSeeds re-running this group after seeding Avec at
+# CCTK_POSTSTEP), so any fluxes the postrestrict pass below recorded as fresh
+# are stale. Inside the RK stages this is a no-op: the ledger is already empty.
+SCHEDULE AsterX_ClearFluxesFresh IN AsterX_Con2PrimGroup
+{
+  LANG: C
+  OPTIONS: global
+} "Forget that the fluxes on the active levels are up to date"
+
+if(!freeze_evolution) {
+
+# AsterX_FluxGroup computes the fluxes, the E/G/F auxiliary terms and the
+# low-order flag, and with restrict_fluxes restricts the fluxes and E/G
+# fine-to-coarse on every level whose child is in the active window. It is
+# traversed in two places:
+#
+# 1. In ODESolvers_RHS, right before AsterX_RHSGroup consumes its output,
+#    unless AsterX_SetComputeFluxes finds the fluxes on every active level
+#    fresh from the postrestrict pass (compute_fluxes = 0). That is the first
+#    RK stage of the levels' next step, whose state is exactly the one the
+#    postrestrict pass saw.
+# 2. AT postrestrict after ODESolvers_PostStep, once per time-aligned pass.
+#    Under subcycling this is the only traversal whose window holds every level
+#    at the current time, so it is where the fluxes and E/G of the restricted
+#    state are computed on the coarse levels and restricted fine-to-coarse; the
+#    coarse levels' next first-stage RHS then sees fluxes consistent with the
+#    fine level. Without subcycling CarpetX restricts during sync and never
+#    traverses CCTK_POSTRESTRICT, so only the first traversal runs.
+#
+# The net cost is one flux evaluation per RHS evaluation, as when the fluxes
+# lived in the RHS group: the postrestrict evaluation replaces the first
+# stage's rather than adding to it. Computing the fluxes in every
+# ODESolvers_PostStep instead would waste the last stage's evaluation on every
+# level that is restricted into or refilled before its next RHS.
+
+SCHEDULE AsterX_SetComputeFluxes IN ODESolvers_RHS BEFORE AsterX_FluxGroup
+{
+  LANG: C
+  OPTIONS: global
+  WRITES: compute_fluxes
+} "compute_fluxes = 0 if the fluxes on every active level are fresh from the postrestrict pass, else 1; consumes the freshness"
+
+SCHEDULE GROUP AsterX_FluxGroup IN ODESolvers_RHS BEFORE AsterX_RHSGroup IF AsterX::compute_fluxes
+{
+} "Calculate fluxes and auxiliary terms for the RHS"
+
+SCHEDULE GROUP AsterX_FluxGroup AT postrestrict AFTER ODESolvers_PostStep
+{
+} "Calculate fluxes and auxiliary terms of the restricted state on the time-aligned levels"
+
+SCHEDULE AsterX_MarkFluxesFresh AT postrestrict AFTER AsterX_FluxGroup
+{
+  LANG: C
+  OPTIONS: global
+} "Record that the fluxes on the active levels are up to date"
 
 SCHEDULE AsterX_InitLOFlag IN AsterX_FluxGroup BEFORE AsterX_Fluxes
 {

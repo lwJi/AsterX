@@ -9,6 +9,8 @@
 #include "sync.hxx"
 
 #include <cassert>
+#include <set>
+#include <utility>
 #include <vector>
 
 namespace AsterX {
@@ -138,6 +140,57 @@ extern "C" void AsterX_CommdB(CCTK_ARGUMENTS) {
   static const std::vector<int> groups = {CCTK_GroupIndex("AsterX::dB")};
 
   SyncGroupsByDirIGhostOnly(cctkGH, groups.size(), groups.data(), nullptr);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Flux freshness ledger (see the AsterX_FluxGroup comment in schedule.ccl)
+//
+// The postrestrict traversal of AsterX_FluxGroup computes the fluxes of the
+// restricted state on every level at the current time. The next
+// ODESolvers_RHS on those levels is the first RK stage of their next step and
+// sees the same state, so the group is skipped there. The ledger holds the
+// (patch, level) pairs whose fluxes are fresh in that sense. It is filled by
+// AsterX_MarkFluxesFresh at the end of the postrestrict pass, consumed by
+// AsterX_SetComputeFluxes at the top of every ODESolvers_RHS, and emptied for
+// the active levels by AsterX_ClearFluxesFresh whenever AsterX_Con2PrimGroup
+// recomputes the primitives, i.e. whenever the state changed outside the RK
+// stages (postregrid, recovery, seeding). Each RK stage's update changes the
+// state too, but the RHS that follows it is the consumer that empties the
+// ledger, and nothing refills it before the next postrestrict pass.
+//
+// Freshness is uniform across the levels of one ODESolvers_RHS traversal:
+// CarpetX batches levels that share a time step, and the postrestrict window
+// is a union of whole batches, so a partially fresh window never occurs. If it
+// did, the group would simply run.
+
+namespace {
+std::set<std::pair<int, int> > fresh_flux_levels; // (patch, level)
+} // namespace
+
+extern "C" void AsterX_MarkFluxesFresh(CCTK_ARGUMENTS) {
+  assert(active_levels);
+  active_levels->loop_serially([&](const auto &leveldata) {
+    fresh_flux_levels.insert({leveldata.patch, leveldata.level});
+  });
+}
+
+extern "C" void AsterX_ClearFluxesFresh(CCTK_ARGUMENTS) {
+  assert(active_levels);
+  active_levels->loop_serially([&](const auto &leveldata) {
+    fresh_flux_levels.erase({leveldata.patch, leveldata.level});
+  });
+}
+
+extern "C" void AsterX_SetComputeFluxes(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_AsterX_SetComputeFluxes;
+
+  assert(active_levels);
+  bool all_fresh = true;
+  active_levels->loop_serially([&](const auto &leveldata) {
+    if (fresh_flux_levels.erase({leveldata.patch, leveldata.level}) == 0)
+      all_fresh = false;
+  });
+  *compute_fluxes = all_fresh ? 0 : 1;
 }
 
 } // namespace AsterX
