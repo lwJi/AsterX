@@ -12,15 +12,26 @@
 namespace AsterX {
 
 ////////////////////////////////////////////////////////////////////////////////
-// Level-window helpers (declared in sync.hxx, except has_aligned_child)
+// Level-window helpers (declared in sync.hxx, except has_aligned_child and
+// group_indices)
 
 // `level` has a child that is in the active window, i.e. is time-aligned
 // with it.
-static bool has_aligned_child(const int level) {
-  return level + 1 < CarpetX::active_window().max_level;
+static bool has_aligned_child(const CarpetX::level_t level) {
+  return level.index() + 1 < CarpetX::active_window().level_bounds().max;
 }
 
-bool full_cascade() { return CarpetX::active_window().min_level == 0; }
+bool full_cascade() { return CarpetX::active_window().level_bounds().min == 0; }
+
+// The flesh's group indices as CarpetX group indices.
+static std::vector<CarpetX::gi_t>
+group_indices(const std::vector<int> &groups) {
+  std::vector<CarpetX::gi_t> gis;
+  gis.reserve(groups.size());
+  for (const int gi : groups)
+    gis.emplace_back(gi);
+  return gis;
+}
 
 void RestrictFromAlignedChildren(const std::vector<int> &groups) {
   // The window form restricts every level pair (L, L + 1) with both levels in
@@ -30,11 +41,11 @@ void RestrictFromAlignedChildren(const std::vector<int> &groups) {
   // restricted; without subcycling every level is active, so this is the same
   // as restricting from every level but the finest. It restricts exactly
   // `groups`, whatever their restrict tags.
-  CarpetX::restrict_no_poison(CarpetX::active_window(), groups);
+  CarpetX::restrict_no_poison(CarpetX::active_window(), group_indices(groups));
 }
 
 void SyncGhostsOnly(const std::vector<int> &groups) {
-  CarpetX::sync_ghosts_only(CarpetX::active_window(), groups);
+  CarpetX::sync_ghosts_only(CarpetX::active_window(), group_indices(groups));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -69,14 +80,15 @@ extern "C" void AsterX_ApplyOuterBCOnPrim(CCTK_ARGUMENTS) {
 // write scope that promises exactly this leaves every validity bit as it
 // was and poisons nothing.
 static CarpetX::valid_t group_validity(const CarpetX::group_t group,
-                                       const int tl) {
-  const CarpetX::valid_t valid = CarpetX::valid(group, tl, 0);
+                                       const CarpetX::tl_t tl) {
+  const CarpetX::valid_t valid = CarpetX::valid(group, tl, CarpetX::vi_t{0});
   for (int vi = 1; vi < CarpetX::numvars(group); ++vi)
-    if (CarpetX::valid(group, tl, vi) != valid)
+    if (CarpetX::valid(group, tl, CarpetX::vi_t{vi}) != valid)
       CCTK_VERROR("AsterX: the variables of group %s differ in validity at "
                   "time level %d on refinement level %d, so a single write "
                   "scope cannot keep all of them",
-                  CCTK_FullGroupName(group.gi), tl, group.level.level);
+                  CCTK_FullGroupName(group.gi.index()), tl.index(),
+                  group.level.index());
   return valid;
 }
 
@@ -106,12 +118,13 @@ static void FillGhostsFromNeighbours(const cGH *const cctkGH,
     assert(ntls > 0);
     const int sync_tl = ntls > 1 ? ntls - 1 : ntls;
     CarpetX::active_window().loop_serially([&](const CarpetX::level_t level) {
-      if (!has_aligned_child(level.level))
+      if (!has_aligned_child(level))
         return;
-      const CarpetX::group_t group{level, gi};
+      const CarpetX::group_t group{level, CarpetX::gi_t{gi}};
       const amrex::Periodicity periodicity =
           CarpetX::geometry(level).periodicity();
-      for (int tl = 0; tl < sync_tl; ++tl) {
+      for (int itl = 0; itl < sync_tl; ++itl) {
+        const CarpetX::tl_t tl{itl};
         CarpetX::write_t scope =
             CarpetX::write(group, tl, group_validity(group, tl),
                            "AsterX::FillGhostsFromNeighbours");
@@ -209,7 +222,7 @@ extern "C" void AsterX_ProlongatedBstag(CCTK_ARGUMENTS) {
                                           CCTK_GroupIndex("AsterX::dBy_stag"),
                                           CCTK_GroupIndex("AsterX::dBz_stag")};
 
-  CarpetX::prolongate_ghosts(CarpetX::active_window(), groups);
+  CarpetX::prolongate_ghosts(CarpetX::active_window(), group_indices(groups));
 }
 
 extern "C" void AsterX_CommdBstag(CCTK_ARGUMENTS) {
