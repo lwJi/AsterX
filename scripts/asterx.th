@@ -732,7 +732,7 @@ CarpetX/WaveToyX
 !CHECKOUT =
 SpacetimeX/Cowling
 SpacetimeX/NewRadX
-SpacetimeX/Punctures
+#SpacetimeX/Punctures
 SpacetimeX/StaticTrumpet
 SpacetimeX/TwoPuncturesX
 SpacetimeX/Weyl
